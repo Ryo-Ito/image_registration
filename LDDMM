@@ -1,0 +1,634 @@
+"""
+LDDMM (Large Deformation Diffeomorphic Metric Registration) algorithm
+
+improvements:
+    try to use gaussian filter after taking gradient of the images.
+"""
+
+from __future__ import division
+import numpy as np
+import nibabel as nib
+from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.filters import convolve
+from scipy.interpolate import RegularGridInterpolator
+from skimage.transform import warp
+from math import pi
+
+class Images(object):
+
+        def setFixed(self, filename):
+            img = nib.load(filename)
+            self.fixed = img.get_data().astype(np.float64)
+            self.affine = img.get_affine()
+            if hasattr(self, 'moving'):
+                self.setShape()
+
+        def setMoving(self, filename):
+            img = nib.load(filename)
+            self.moving = img.get_data().astype(np.float64)
+            if hasattr(self, 'fixed'):
+                self.setShape()
+
+        def setShape(self):
+            if self.moving.shape == self.fixed.shape:
+                self.origShape = self.fixed.shape
+            else:
+                raise ValueError('mismatch of the sizes')
+
+        def save(self, filename):
+            from os.path import splitext
+            name, ext = splitext(filename)
+
+            if not ext:
+                ext = '.nii'
+
+            if self.dimension == 2:
+                fwarp = self.forward_warp.transpose(1,2,0)
+                bwarp = self.backward_warp.transpose(1,2,0)
+            elif self.dimension == 3:
+                fwarp = self.forward_warp.transpose(1,2,3,0)
+                bwarp = self.backward_warp.transpose(1,2,3,0)
+
+            nib.save(nib.Nifti1Image(self.result, self.affine), name + 'Result' + ext)
+            nib.save(nib.Nifti1Image(fwarp, self.affine), name + 'ForwardWarp' + ext)
+            nib.save(nib.Nifti1Image(bwarp, self.affine), name + 'BackwardWarp' + ext)
+
+        def show(self, ratio=5):
+            import matplotlib.pyplot as plt
+
+            forward_mapping = self.forward_warp + self.Id
+            backward_mapping = self.backward_warp + self.Id
+
+            # Left: Show moving image
+            plt.subplot(1,3,1)
+            plt.imshow(self.moving, cmap='gray')
+            # Middle: Show transformed moving image
+            plt.subplot(1,3,2)
+            plt.imshow(self.result, cmap='gray')
+            # Right: Show fixed image
+            plt.subplot(1,3,3)
+            plt.imshow(self.fixed, cmap='gray')
+            plt.show()
+
+            # Show transformed moving iamge and deformed space
+            plt.subplot(1,2,1)
+            plt.imshow(self.result, cmap='gray')
+            plt.subplot(1,2,2)
+            plt.xlim(0,self.origShape[1])
+            plt.ylim(0,self.origShape[0])
+            ax = plt.gca()
+            ax.invert_yaxis()
+            for x in xrange(0, self.origShape[0], ratio):
+                plt.plot(forward_mapping[1,x,:], forward_mapping[0,x,:], 'k')
+            for y in xrange(0, self.origShape[1], ratio):
+                plt.plot(forward_mapping[1,:,y], forward_mapping[0,:,y], 'k')
+            plt.show()
+
+            # Showing transformed fixed image by backward mapping and the deformation of the space
+            plt.subplot(1,2,1)
+            plt.imshow(warp(self.fixed, backward_mapping), cmap='gray')
+            plt.subplot(1,2,2)
+            plt.xlim(0,self.origShape[1])
+            plt.ylim(0,self.origShape[0])
+            ax = plt.gca()
+            ax.invert_yaxis()
+            for x in xrange(0, self.origShape[0], ratio):
+                plt.plot(backward_mapping[1,x,:], backward_mapping[0,x,:], 'k')
+            for y in xrange(0, self.origShape[1], ratio):
+                plt.plot(backward_mapping[1,:,y], backward_mapping[0,:,y], 'k')
+            plt.show()
+
+class calculation(object):
+
+    def jacobian(self, mapping):
+        """
+        Calculate jacobian of vector valued data along 2 or 3 axis
+        which is written as D(phi) in the paper
+        data (3d + 3 values in all voxels when self.dimension == 3) mapping
+        """
+        J = np.zeros((self.dimension, self.dimension) + self.shape)
+        if self.dimension == 2:
+            # dfxdx, dfxdy
+            J[0,0], J[0,1] = np.gradient(mapping[0])
+            # J[0] = np.array(np.gradient(mapping[0]))
+            # dfydx, dfydy
+            J[1,0], J[1,1] = np.gradient(mapping[1])
+            # J[1] = np.array(np.gradient(mapping[1]))
+        elif self.dimension == 3:
+            J[0,0], J[0,1], J[0,2] = np.gradient(mapping[0])
+            J[1,0], J[1,1], J[1,2] = np.gradient(mapping[1])
+            J[2,0], J[2,1], J[2,2] = np.gradient(mapping[2])
+
+        return J
+
+    def regularize(self, vec_field):
+        """
+        operator L = - alpha * laplacian + gamma * Id
+        K = (LL)^{-1}
+        f = Kg
+        or
+        g = (LL)f
+        where f is what we want to calculate
+        Fourier transform
+        G = A^2 * F
+        where
+        A = gamma + 2 * alpha sum^3_{i=1} (1 - cos(2pi*dxi*ki))/dxi^2
+        where
+        ki is frequency and
+        dxi is the discritization of the image domain which will be shape[i]
+        Therefore
+
+        f = inverse of Fourier transform of (G / A^2)
+        """
+        from scipy.fftpack import fftn, ifftn
+        G = np.zeros(vec_field.shape, dtype=np.complex128)
+        for i in xrange(self.dimension):
+            G[i] = fftn(vec_field[i])
+
+        A = self.gamma * np.ones(self.shape)
+
+        for i in xrange(self.dimension):
+            A += 2 * self.alpha * (self.shape[i] ** 2) * (1 - np.cos(2 * pi * self.Id[i] / self.shape[i]))
+
+        A_sqinv = 1 / (A ** 2)
+
+        F = np.einsum('i...,...->i...', G, A_sqinv)
+
+        f = np.zeros_like(vec_field)
+        for i in xrange(self.dimension):
+            f[i] = np.real(ifftn(F[i]))
+
+        return f
+
+    def integrate_vec_fields(self):
+        """
+        forward mapping
+        phi_{t+delta(t),0} = phi_{t,0} - jacobian(phi_{t,0}).dot(vec_field_t) * delta(t)
+        integrating vector field from t = 0 to t = 1 to produce new forward mapping function phi_{t,0}
+
+        backward mapping
+        phi_{t-delta(t),1} = phi_{t,1} + jacobian(phi_{t,1}).dot(vec_field_{1-t}) * delta(t)
+        integrating vector field from t = 1 to t = 0 to get new backward mapping function phi{t,1}
+        """
+        for i in xrange(self.steps - 1):
+            self.forward_shifts[i+1] = self.forward_shifts[i] - np.einsum('ij...,j...->i...', self.jacobian(self.forward_shifts[i]+self.Id), self.vec_fields[i]) * self.delta_t
+
+            self.backward_shifts[i+1] = self.backward_shifts[i] + np.einsum('ij...,j...->i...', self.jacobian(self.backward_shifts[i]+self.Id), self.vec_fields[-i-1]) * self.delta_t
+
+    def L(self, vec_field):
+        """
+        applying operator L = - alpha * nabla + gamma * Id
+        to the vector field
+        """
+        result = np.zeros((self.dimension,) + self.shape)
+        if self.dimension == 2:
+            dx_sqinv = 1/(self.shape[0]**2)
+            dy_sqinv = 1/(self.shape[1]**2)
+            kernel = np.array([
+                [0., - self.alpha * dx_sqinv,0.],
+                [-self.alpha * dy_sqinv, 2 * self.alpha * (dx_sqinv + dy_sqinv) + self.gamma,-self.alpha * dy_sqinv],
+                [0.,-self.alpha * dx_sqinv,0.]]) * self.alpha
+        elif self.dimension == 3:
+            dx_sqinv = 1 / (self.shape[0] ** 2)
+            dy_sqinv = 1 / (self.shape[1] ** 2)
+            dz_sqinv = 1 / (self.shape[2] ** 2)
+            kernel = np.array(
+                [[[0., 0., 0.],
+                [0., - self.alpha * dx_sqinv, 0.],
+                [0., 0., 0.]],
+                [[0., - self.alpha * dy_sqinv, 0.],
+                [- self.alpha * dz_sqinv, 2 * self.alpha * (dx_sqinv + dy_sqinv + dz_sqinv) + self.gamma, - self.alpha * dz_sqinv],
+                [0, - self.alpha * dy_sqinv, 0]],
+                [[0., 0., 0.],
+                [0., - self.alpha * dx_sqinv, 0.],
+                [0., 0., 0.]]])
+        for i in xrange(self.dimension):
+            result[i] = convolve(vec_field[i], kernel, mode='constant')
+
+        return result
+
+    def _Energy(self):
+        E_v = 0
+        for i in xrange(self.steps):
+            E_v += np.sum(np.linalg.norm(self.L(self.vec_fields[i]), axis=0)) * self.delta_t
+        if self.metric == 'ssd':
+            E_similarity = self.Energy_ssd()
+        elif self.metric == 'cc':
+            E_similarity = self.Energy_cc()
+        return E_v + E_similarity
+
+    def update_epsilon(self):
+        E = self._Energy()
+        print E
+        if abs(self.Energy - E) < self.threshold:
+            self.stop = True
+            self.Energy = E
+        elif E > self.Energy:
+            self.vec_fields += self.epsilon * self.gradEs
+            self.epsilon = self.epsilon * 0.1
+            self.again = True
+        else:
+            self.Energy = E
+            self.again = False
+
+class ssd(calculation):
+
+    def update_vec_fields_ssd(self):
+        """
+        Error = int^1_0 ||v_t||^2_V dt + 1/sigma^2 ||I_0(phi_{1,0}) - I_1||^2_L^2
+        Sum of square differences of intencities of the two images.
+        differentiating this equation by v_t
+        2v_t - K(2/sigma^2 |Jacobian(phi_{t,1})| nabla(J^0_t)(J^0_t - J^1_t)) = 0
+        """
+        for i in xrange(self.steps):
+            forward_mapping = self.forward_shifts[i] + self.Id
+            backward_mapping = self.backward_shifts[-i-1] + self.Id
+
+            I0 = warp(self.source, forward_mapping)
+            I1 = warp(self.target, backward_mapping)
+
+            if self.dimension == 2:
+                Dphi = np.linalg.det(self.jacobian(backward_mapping).transpose(2,3,0,1))
+            elif self.dimension == 3:
+                Dphi = np.linalg.det(self.jacobian(backward_mapping).transpose(2,3,4,0,1))
+
+            f = np.einsum('i...,...->i...', np.array(np.gradient(I0)), Dphi * (I0 - I1))
+            f = self.regularize(f)
+
+            self.gradEs[i] = 2 * self.vec_fields[i] - 2 * f / self.variance
+
+        self.vec_fields -= self.epsilon * self.gradEs
+
+    def Energy_ssd(self):
+        E = warp(self.source, self.forward_shifts[-1] + self.Id) - self.target
+        E = np.sum(E ** 2)
+        return E
+
+class cross_correlation(calculation):
+
+    def calc_cc(self, I, J):
+        """
+        I: deformed source image
+        J: deformed target image
+        """
+        num = self.window ** self.dimension
+        if self.dimension == 2:
+            kernel = np.ones((self.window, self.window))
+        elif self.dimension == 3:
+            kernel = np.ones((self.window, self.window, self.window))
+        Im = convolve(I, kernel, mode='constant') / num
+        Jm = convolve(J, kernel, mode='constant') / num
+
+        II = convolve(I ** 2, kernel, mode='constant') - num * (Im ** 2)
+        JJ = convolve(J ** 2, kernel, mode='constant') - num * (Jm ** 2)
+        IJ = convolve(I * J, kernel, mode='constant') - num * Im * Jm
+
+        # II[np.where(II < 0)] = 0
+        # JJ[np.where(JJ < 0)] = 0
+
+        return II, JJ, IJ
+
+    def nabla(self, image, variance=1.):
+        grad = np.gradient(image)
+
+        dIx = gaussian_filter(grad[0], variance)
+        dIy = gaussian_filter(grad[1], variance)
+
+        return np.array([dIx, dIy])
+
+    def update_vec_fields_cc(self):
+        """
+        update vector fields using zero-means normalized cross correlation as a similarity measure
+        """
+        for i in xrange(self.steps):
+            forward_mapping = self.forward_shifts[i] + self.Id
+            backward_mapping = self.backward_shifts[-i-1] + self.Id
+
+            I = warp(self.source, forward_mapping)
+            J = warp(self.target, backward_mapping)
+
+            if self.dimension == 2:
+                Dphi = np.linalg.det(self.jacobian(backward_mapping).transpose(2,3,0,1))
+                kernel = np.ones((self.window, self.window))
+            elif self.dimension == 3:
+                Dphi = np.linalg.det(self.jacobian(backward_mapping).transpose(2,3,4,0,1))
+                kernel = np.ones((self.window, self.window, self.window))
+
+            num = self.window ** self.dimension
+            Im = convolve(I, kernel, mode='constant') / num
+            Jm = convolve(J, kernel, mode='constant') / num
+
+            II, JJ, IJ = self.calc_cc(I, J)
+
+            # Note that IJ^2/(II * JJ) is squared cross correlation which ranges from 0 to +1
+            denom = II * JJ
+            IJoverIIJJ = IJ / denom
+            IJoverIIJJ[np.where(denom) < 1e-5] = 0
+            IJoverII = IJ / II
+            IJoverII[np.where(II < 1e-5)] = 0
+
+            f = np.einsum('i...,...->i...', np.array(np.gradient(Im)), IJoverIIJJ * (Jm - Im * IJoverII) * Dphi)
+            # fx = gaussian_filter(f[0], 2.)
+            # fy = gaussian_filter(f[1], 2.)
+            # f = np.array([fx, fy])
+            f = self.regularize(f)
+
+            self.gradEs[i] = 2 * self.vec_fields[i] + 2 * f / self.variance
+
+        self.vec_fields -= self.epsilon * self.gradEs
+
+    def Energy_cc(self):
+        I = warp(self.source, self.forward_shifts[-1] + self.Id)
+        J = self.target
+
+        II, JJ, IJ = self.calc_cc(I, J)
+
+        denom = II * JJ
+
+        E = (IJ ** 2) / denom
+        E[np.where(denom < 1e-5)] = 0
+        print - np.sum(E)/self.variance
+
+        return - np.sum(E) / self.variance
+
+class gaussian_cross_correlation(calculation):
+
+    def update_vec_fields_gcc(self):
+        """
+        update vector field using gaussian weighted cross correlation as a similarity measure
+        """
+        for i in xrange(self.steps):
+            forward_mapping = self.forward_shifts[i] + self.Id
+            backward_mapping = self.backward_shifts[-i-1] + self.Id
+
+            I0 = warp(self.source, forward_mapping)
+            I1 = warp(self.target, backward_mapping)
+
+            I0g = gaussian_filter(I0, sigma=self.window, mode='constant')
+            I1g = gaussian_filter(I1, sigma=self.window, mode='constant')
+
+            A = gaussian_filter(I0 * I1, sigma=self.window, mode='constant') - I0g * I1g
+            B = gaussian_filter(I0 ** 2, sigma=self.window, mode='constant') - I0g ** 2
+            C = gaussian_filter(I1 ** 2, sigma=self.window, mode='constant') - I1g ** 2
+
+            if self.dimension == 2:
+                Dphi = np.linalg.det(self.jacobian(backward_mapping).transpose(2,3,0,1))
+            elif self.dimension == 3:
+                Dphi = np.linalg.det(self.jacobian(backward_mapping).transpose(2,3,4,0,1))
+
+            AoverB = A/B
+            AoverB[np.isnan(AoverB)] = 0
+            AoverB[np.isinf(AoverB)] = 0
+            AoverBC = (self.window ** self.dimension) * A / (B * C)
+            AoverBC[np.isnan(AoverBC)] = 0
+            AoverBC[np.isinf(AoverBC)] = 0
+
+            f = np.einsum('i...,...->i...', np.array(np.gradient(I0g)), AoverBC * (I1g - I0g * AoverB) * Dphi)
+            # f = np.einsum('i...,...->i...', np.array(np.gradient(I0g)), AoverBC * (I1g - I0g * AoverB))
+            f = self.regularize(f)
+
+            self.gradEs[i] = 2 * self.vec_fields[i] + 2 * f / self.variance
+
+        self.vec_fields -= self.epsilon * self.gradEs
+
+class resolution(object):
+
+    def downsample(self):
+        """
+        down sample target and source image to the resolution users defined and define vector fields, gradients, forward_shifts, backward_shifts
+        """
+        if self.dimension == 2:
+            Id = np.mgrid[0:self.origShape[0], 0:self.origShape[1]]
+            source = warp(self.moving, self.forward_warp + Id)
+            self.target = gaussian_filter(self.fixed, self.gauss)[::self.scale, ::self.scale]
+            self.source = gaussian_filter(source, self.gauss)[::self.scale, ::self.scale]
+            self.shape = self.target.shape
+            if self.variance is None:
+                self.variance = self.shape[0] * self.shape[1]
+            self.Id = np.mgrid[0:self.shape[0], 0:self.shape[1]]
+        elif self.dimension == 3:
+            Id = np.mgrid[0:self.origShape[0], 0:self.origShape[1], 0:self.origShape[2]]
+            source = warp(self.moving, self.forward_warp + Id)
+            self.target = gaussian_filter(self.fixed, self.gauss)[::self.scale, ::self.scale, ::self.scale]
+            self.source = gaussian_filter(source, self.gauss)[::self.scale, ::self.scale, ::self.scale]
+            self.shape = self.target.shape
+            if self.variance is None:
+                self.variance = self.shape[0] * self.shape[1] * self.shape[2]
+            self.Id = np.mgrid[0:self.shape[0], 0:self.shape[1], 0:self.shape[2]]
+
+        self.vec_fields = np.zeros((self.steps, self.dimension) + self.shape)
+        self.gradEs = np.copy(self.vec_fields)
+        self.forward_shifts = np.copy(self.vec_fields)
+        self.backward_shifts = np.copy(self.vec_fields)
+
+    def upsample(self):
+        """
+        Linear interpolate the result of the integrated warps defined at the resolution to the original resolution.
+        """
+        if self.dimension == 2:
+            x = np.arange(0, self.shape[0] * self.scale, self.scale)
+            y = np.arange(0, self.shape[1] * self.scale, self.scale)
+
+            points = np.mgrid[0:self.origShape[0], 0:self.origShape[1]].transpose(1,2,0).reshape(-1, self.dimension)
+
+            for i in xrange(self.dimension):
+                f = RegularGridInterpolator((x,y), self.forward_shifts[-1,i] * self.scale, method='linear', bounds_error=False, fill_value=None)
+                b = RegularGridInterpolator((x,y), self.backward_shifts[-1,i] * self.scale, method='linear', bounds_error=False, fill_value=None)
+                self.forward_warp[i] = f(points).reshape(self.origShape)
+                self.backward_warp[i] = b(points).reshape(self.origShape)
+
+            self.Id = np.mgrid[0:self.origShape[0], 0:self.origShape[1]]
+
+        elif self.dimension == 3:
+            x = np.arange(0, self.shape[0] * self.scale, self.scale)
+            y = np.arange(0, self.shape[1] * self.scale, self.scale)
+            z = np.arange(0, self.shape[2] * self.scale, self.scale)
+
+            points = np.mgrid[0:self.origShape[0], 0:self.origShape[1], 0:self.origShape[2]].transpose(1,2,3,0).reshape(-1, self.dimension)
+
+            for i in xrange(self.dimension):
+                f = RegularGridInterpolator((x,y,z), self.forward_shifts[-1,i] * self.scale, method='linear', bounds_error=False, fill_value=None)
+                b = RegularGridInterpolator((x,y,z), self.backward_shifts[-1,i] * self.scale, method='linear', bounds_error=False, fill_value=None)
+                self.forward_warp[i] = f(points).reshape(self.origShape)
+                self.backward_warp[i] = b(points).reshape(self.origShape)
+
+            self.Id = np.mgrid[0:self.origShape[0], 0:self.origShape[1], 0:self.origShape[2]]
+
+    def calc_warp(self):
+
+        if self.dimension == 2:
+            self.Id = np.mgrid[0:self.origShape[0], 0:self.origShape[1]]
+
+            x = np.arange(0, self.shape[0] * self.scale, self.scale)
+            y = np.arange(0, self.shape[1] * self.scale, self.scale)
+
+            forward_points = self.forward_warp + self.Id
+            backward_points = self.backward_warp + self.Id
+            forward_points = forward_points.transpose(1,2,0).reshape(-1, self.dimension)
+            backward_points = backward_points.transpose(1,2,0).reshape(-1, self.dimension)
+
+            for i in xrange(self.dimension):
+                f = RegularGridInterpolator((x,y), self.forward_shifts[-1,i] * self.scale, method='linear', bounds_error=False, fill_value=None)
+                b = RegularGridInterpolator((x,y), self.backward_shifts[-1,i] * self.scale, method='linear', bounds_error=False, fill_value=None)
+                self.forward_warp[i] = self.forward_warp[i] + f(forward_points).reshape(self.origShape)
+                self.backward_warp[i] = self.backward_warp[i] + b(backward_points).reshape(self.origShape)
+
+        elif self.dimension == 3:
+            self.Id = np.mgrid[0:self.origShape[0], 0:self.origShape[1], 0:self.origShape[2]]
+
+            x = np.arange(0, self.origShape[0], self.scale)
+            y = np.arange(0, self.origShape[1], self.scale)
+            z = np.arange(0, self.origShape[2], self.scale)
+
+            forward_points = self.forward_warp + self.Id
+            forward_points = forward_points.transpose(1,2,3,0).reshape(-1, self.dimension)
+            backward_points = self.backward_warp + self.Id
+            backward_points = backward_points.transpose(1,2,3,0).reshape(-1, self.dimension)
+
+            for i in xrange(self.dimension):
+                f = RegularGridInterpolator((x,y,z), self.forward_shifts[-1,i] * self.scale, method='linear', bounds_error=False, fill_value=None)
+                b = RegularGridInterpolator((x,y,z), self.backward_shifts[-1,i] * self.scale, method='linear', bounds_error=False, fill_value=None)
+                self.forward_warp[i] = self.forward_warp[i] + f(forward_points).reshape(self.origShape)
+                self.backward_warp[i] = self.backward_warp[i] + b(backward_points).reshape(self.origShape)
+
+class LDDMMregistration(Images,
+                        ssd,
+                        cross_correlation,
+                        gaussian_cross_correlation,
+                        resolution
+                        ):
+
+    def __init__(
+            self,
+            dimension=2,
+            ITER_MAX=50,
+            scale=1,
+            alpha=0.01,
+            gamma=1.0,
+            epsilon=0.1,
+            steps=32,
+            variance=None,
+            window=5,
+            gauss=None,
+            delta_t=None,
+            threshold=1.,
+            metric='ssd',
+            reparametrize=False,
+            multi_resolution=False):
+        if not(dimension == 2 or dimension == 3):
+            raise ValueError('dimension has to be 2 or 3')
+
+        self.dimension = dimension
+        self.ITER_MAX = ITER_MAX
+        self.scale = scale
+        self.alpha = alpha
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.steps = steps
+        self.variance = variance
+        self.window = window
+        if gauss is None:
+            self.gauss = scale/2
+        else:
+            self.gauss = gauss
+        if delta_t is None:
+            self.delta_t = 1 / self.steps
+        else:
+            self.delta_t = delta_t
+        self.metric = metric
+        self.reparametrize = reparametrize
+        self.threshold = threshold
+        self.multi_resolution = multi_resolution
+
+    def run(self):
+        self.forward_warp = np.zeros((self.dimension,) + self.origShape)
+        self.backward_warp = np.copy(self.forward_warp)
+        if self.multi_resolution:
+            while(True):
+                print "resolution", self.scale
+                epsilon = self.epsilon
+                self.downsample()
+                self.gauss = self.scale / 2
+                self.variance = self.variance * (self.scale ** self.dimension)
+                self.stop = False
+                self.again = False
+                self.Energy = self._Energy()
+                print self.Energy
+
+                i = 1
+                while(self.stop is False and self.epsilon > 1e-10):
+                    if self.metric == 'ssd':
+                        self.update_vec_fields_ssd()
+                    elif self.metric == 'cc':
+                        self.update_vec_fields_cc()
+                    elif self.metric == 'gcc':
+                        self.update_vec_fields_gcc()
+
+                    self.integrate_vec_fields()
+                    self.update_epsilon()
+
+                    if self.again:
+                        continue
+
+                    print "iteration%4d, Energy %f, epsilon %f" % (i, self.Energy, self.epsilon)
+
+                    i += 1
+                    if i > self.ITER_MAX:
+                        break
+
+                self.calc_warp()
+                self.variance = self.variance / (self.scale ** self.dimension)
+                self.epsilon = epsilon
+                self.scale -= 1
+                if self.scale == 0:
+                    break
+
+        else:
+            self.downsample()
+            self.stop = False
+            self.again = False
+            self.Energy = self._Energy()
+            print self.Energy
+
+            i = 1
+            while(self.stop is False and self.epsilon > 1e-10):
+                if self.metric == 'ssd':
+                    self.update_vec_fields_ssd()
+                elif self.metric == 'cc':
+                    self.update_vec_fields_cc()
+                elif self.metric == 'gcc':
+                    self.update_vec_fields_gcc()
+
+                self.integrate_vec_fields()
+                self.update_epsilon()
+
+                if self.again:
+                    continue
+
+                print "iteration%4d, Energy %f" % (i, self.Energy)
+
+                i += 1
+                if i > self.ITER_MAX:
+                    break
+
+            self.upsample()
+
+        self.result = warp(self.moving, self.forward_warp + self.Id)
+
+def main():
+    from os.path import expanduser, join
+    home = expanduser('~')
+    dir_name = dir_name = join(home, 'registration/img/LDDMM_test3d/')
+    fixed = join(dir_name, 'reg_standard_rescaled.nii')
+    moving = join(dir_name, 'test2_affine_rescaled.nii')
+    save = join(dir_name, 'cc.nii')
+
+    reg = LDDMMregistration(dimension=3, alpha=0.00004, gamma=0.4, variance=0.1, scale=2, metric='cc', multi_resolution=False)
+    # reg = LDDMMregistration(dimension=3, ITER_MAX=50, scale=2, alpha=0.00025, gamma=1., variance=1e2, metric='ssd')
+    reg.setFixed(fixed)
+    reg.setMoving(moving)
+    reg.run()
+    reg.save(save)
+
+if __name__ == '__main__':
+    main()
