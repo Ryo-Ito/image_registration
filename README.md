@@ -1,3 +1,3 @@
 # image_registration
-image registration program implemented using python
-algorithms are ART and LDDMM.
+image registration program implemented using python.
+Algorithms are ART and LDDMM.
