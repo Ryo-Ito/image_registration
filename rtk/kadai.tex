@@ -1,0 +1,57 @@
+\documentclass{jarticle}
+\title{Perspective in Informatics 2 (情報学展望２)}
+\author{Ryo Ito (情報学研究科　システム科学専攻　論理生命学分野　伊藤崚　6930-28-7153)}
+\date{}
+\begin{document}
+
+\maketitle
+
+\section{Further properties of continued fractions}
+\begin{enumerate}
+\item
+\begin{eqnarray}
+    lhs. &=& {P_{k-2}Q_k - P_kQ_{k-2}\over Q_kQ_{k-2}}\\
+    &=& {P_{k-2}(q_kQ{k-1}+Q_{k-2}) - (q_kP_{k-1}+P_{k-2})Q_{k-2}\over Q_kQ_{k-2}}\\
+    &=& {q_k(P_{k-2}Q_{k-1} - P_{k-2}Q_{k-2})\over Q_kQ_{k-2}}\\
+    &=& {(-1)^{k-1}q_k\over Q_kQ_{k-1}}
+\end{eqnarray}
+
+\item
+From the property
+\begin{equation}
+    {P_{k+1}\over Q_{k+1}} - {P_k\over Q_k} = {(-1)^k\over Q_kQ_{k+1}}
+\end{equation}
+we have,
+\begin{eqnarray}
+    {P_{k+1}\over Q_{k+1}} < {P_k \over Q_k} ~~~ k = 1,3,5,\cdots\\
+    {P_k \over Q_k} < {P_{k+1} \over Q_{k+1}} ~~~ k = 0,2,4,\cdots
+\end{eqnarray}
+When $2m < 2n+1$,
+\begin{equation}
+    {P_{2m}\over Q_{2m}} < {P_{2m+2}\over Q_{2m+2}} < \cdots < {P_{2n}\over Q_{2n}} < {P_{2n+1}\over Q_{2n+1}}
+\end{equation}
+When $2n + 1 < 2m$,
+\begin{equation}
+    {P_{2m}\over Q_{2m}} < {P_{2m-1}\over Q_{2m-1}} < \cdots < {P_{2n+1}\over Q_{2n+1}}
+\end{equation}
+Thus, any even convergent is less than any odd convergent.
+
+\item
+Since the recurrence relations for both $P_n$ and $Q_n$ are the same,
+\begin{equation}
+    P_{n+1} = P_n + P_{n-1}, ~ Q_{n+1} = Q_n + Q_{n-1}
+\end{equation}
+and because the initial conditions are $P_0 = 1, Q_0 = 1 P_1 = 2, Q_1 = 1$, it is obvious that we have
+\begin{equation}
+    P_n = Q_{n+1}
+\end{equation}
+by mathematical induction.
+
+\item
+
+
+\end{enumerate}
+    
+
+
+\end{document}
