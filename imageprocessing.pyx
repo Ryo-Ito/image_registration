@@ -5,13 +5,6 @@ from libc.stdlib cimport malloc, free
  
 ctypedef cnp.float64_t DOUBLE_t
 
-def test(cnp.ndarray[DOUBLE_t, ndim=3, mode='strided'] func, int size):
-    test1(<double*> func.data, size)
-
-cdef inline test1(double* func, int size):
-    for i in xrange(size):
-        print func[i]
-
 def gradient(cnp.ndarray func):
     cdef int n = func.ndim
     if n == 1:
