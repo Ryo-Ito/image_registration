@@ -569,26 +569,26 @@ class LDDMM(DiffeormorphicDeformation):
         self.vector_fields = np.zeros((self.deformation_step + 1, self.ndim) + self.shape)
         self.delta_vector_fields = np.copy(self.vector_fields)
 
-    def update(self, fixed_images, moving_images):
-        """
-        update deformation using gradient descent method
+    # def update(self, fixed_images, moving_images):
+    #     """
+    #     update deformation using gradient descent method
 
-        Parameter
-        ----------
-        fixed_images : SequentialScalarImages
-            deformed fixed images
-        moving_images : SequentialScalarImages
-            deformed moving images
-        """
-        for i in xrange(self.deformation_step + 1):
-            j = - i - 1
-            self.delta_vector_fields[i] = self.learning_rate * (2 * self.vector_fields[i] + self.grad_E_similarity(fixed_images[j], moving_images[i], self.backward_jacobian_determinants[j]))
+    #     Parameter
+    #     ----------
+    #     fixed_images : SequentialScalarImages
+    #         deformed fixed images
+    #     moving_images : SequentialScalarImages
+    #         deformed moving images
+    #     """
+    #     for i in xrange(self.deformation_step + 1):
+    #         j = - i - 1
+    #         self.delta_vector_fields[i] = self.learning_rate * (2 * self.vector_fields[i] + self.grad_E_similarity(fixed_images[j], moving_images[i], self.backward_jacobian_determinants[j]))
 
-        self.vector_fields -= self.delta_vector_fields
+    #     self.vector_fields -= self.delta_vector_fields
 
-        self.integrate_vector_fields()
+    #     self.integrate_vector_fields()
 
-    def update_new(self, fixed_images, moving_images, learning_rate):
+    def update(self, fixed_images, moving_images, learning_rate):
         """
         update deformation using gradient descent method
 
@@ -681,28 +681,28 @@ class SyN(DiffeormorphicDeformation):
         self.former_delta_vector_fields = np.copy(self.former_vector_fields)
         self.latter_delta_vector_fields = np.copy(self.former_vector_fields)
 
-    def update(self, fixed_images, moving_images):
-        """
-        update deformation using gradient descent method
+    # def update(self, fixed_images, moving_images):
+    #     """
+    #     update deformation using gradient descent method
 
-        Parameters
-        ----------
-        fixed_images : SequentialScalarImages
-            deformed fixed images
-        moving_images : SequentialScalarImages
-            deformed moving images
-        """
-        for i in xrange(self.half_deformation_step + 1):
-            j = -i - 1
-            self.former_delta_vector_fields[i] = self.learning_rate * (2 * self.former_vector_fields[i] + self.grad_E_similarity(fixed_data=fixed_images[j], moving_data=moving_images[i], Dphi=self.backward_jacobian_determinants[j]))
-            self.latter_delta_vector_fields[i] = self.learning_rate * (2 * self.latter_vector_fields[i] + self.grad_E_similarity(fixed_data=moving_images[j], moving_data=fixed_images[i], Dphi=self.forward_jacobian_determinants[i]))
+    #     Parameters
+    #     ----------
+    #     fixed_images : SequentialScalarImages
+    #         deformed fixed images
+    #     moving_images : SequentialScalarImages
+    #         deformed moving images
+    #     """
+    #     for i in xrange(self.half_deformation_step + 1):
+    #         j = -i - 1
+    #         self.former_delta_vector_fields[i] = self.learning_rate * (2 * self.former_vector_fields[i] + self.grad_E_similarity(fixed_data=fixed_images[j], moving_data=moving_images[i], Dphi=self.backward_jacobian_determinants[j]))
+    #         self.latter_delta_vector_fields[i] = self.learning_rate * (2 * self.latter_vector_fields[i] + self.grad_E_similarity(fixed_data=moving_images[j], moving_data=fixed_images[i], Dphi=self.forward_jacobian_determinants[i]))
 
-        self.former_vector_fields -= self.former_delta_vector_fields
-        self.latter_vector_fields -= self.latter_delta_vector_fields
+    #     self.former_vector_fields -= self.former_delta_vector_fields
+    #     self.latter_vector_fields -= self.latter_delta_vector_fields
 
-        self.integrate_vector_fields()
+    #     self.integrate_vector_fields()
 
-    def update_new(self, fixed_images, moving_images, learning_rate):
+    def update(self, fixed_images, moving_images, learning_rate):
         """
         update deformation using gradient descent method
 

@@ -131,7 +131,7 @@ class Registration(object):
             print "iteration   0, Energy %f" % (self.energy)
 
             for i in xrange(max_iter):
-                self.deformation.update_new(deformed_fixed_images, deformed_moving_images, self.learning_rate)
+                self.deformation.update(deformed_fixed_images, deformed_moving_images, self.learning_rate)
 
                 if not self.check_one_to_one():
                     break
@@ -178,7 +178,7 @@ class Registration(object):
             print "iteration   0, Energy %f" % (self.energy)
 
             for i in xrange(max_iter):
-                self.deformation.update_new(deformed_fixed_images, deformed_moving_images, self.learning_rate)
+                self.deformation.update(deformed_fixed_images, deformed_moving_images, self.learning_rate)
 
                 if not self.check_one_to_one():
                     break
