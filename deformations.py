@@ -569,25 +569,6 @@ class LDDMM(DiffeormorphicDeformation):
         self.vector_fields = np.zeros((self.deformation_step + 1, self.ndim) + self.shape)
         self.delta_vector_fields = np.copy(self.vector_fields)
 
-    # def update(self, fixed_images, moving_images):
-    #     """
-    #     update deformation using gradient descent method
-
-    #     Parameter
-    #     ----------
-    #     fixed_images : SequentialScalarImages
-    #         deformed fixed images
-    #     moving_images : SequentialScalarImages
-    #         deformed moving images
-    #     """
-    #     for i in xrange(self.deformation_step + 1):
-    #         j = - i - 1
-    #         self.delta_vector_fields[i] = self.learning_rate * (2 * self.vector_fields[i] + self.grad_E_similarity(fixed_images[j], moving_images[i], self.backward_jacobian_determinants[j]))
-
-    #     self.vector_fields -= self.delta_vector_fields
-
-    #     self.integrate_vector_fields()
-
     def update(self, fixed_images, moving_images, learning_rate):
         """
         update deformation using gradient descent method
@@ -606,24 +587,6 @@ class LDDMM(DiffeormorphicDeformation):
         self.vector_fields -= self.delta_vector_fields
 
         self.integrate_vector_fields()
-
-    def integrate_vector_fields_old(self):
-        """
-        integrate vector fields and produce diffeomorphic mappings
-        """
-
-        for i in xrange(self.deformation_step):
-            v = 0.5 * (self.vector_fields[i] + self.vector_fields[i + 1])
-            self.forward_mappings[i + 1] = self.euler_integration(self.forward_mappings[i], self.forward_jacobian_matrixs[i], v)
-
-            v = - 0.5 * (self.vector_fields[-i - 1] + self.vector_fields[-i - 2])
-            self.backward_mappings[i + 1] = self.euler_integration(self.backward_mappings[i], self.backward_jacobian_matrixs[i], v)
-
-            self.forward_jacobian_matrixs[i + 1] = jacobian_matrix(self.forward_mappings[i + 1])
-            self.backward_jacobian_matrixs[i + 1] = jacobian_matrix(self.backward_mappings[i + 1])
-
-            self.forward_jacobian_determinants[i + 1] = determinant(self.forward_jacobian_matrixs[i + 1])
-            self.backward_jacobian_determinants[i + 1] = determinant(self.backward_jacobian_matrixs[i + 1])
 
     def integrate_vector_fields(self):
         """
@@ -681,27 +644,6 @@ class SyN(DiffeormorphicDeformation):
         self.former_delta_vector_fields = np.copy(self.former_vector_fields)
         self.latter_delta_vector_fields = np.copy(self.former_vector_fields)
 
-    # def update(self, fixed_images, moving_images):
-    #     """
-    #     update deformation using gradient descent method
-
-    #     Parameters
-    #     ----------
-    #     fixed_images : SequentialScalarImages
-    #         deformed fixed images
-    #     moving_images : SequentialScalarImages
-    #         deformed moving images
-    #     """
-    #     for i in xrange(self.half_deformation_step + 1):
-    #         j = -i - 1
-    #         self.former_delta_vector_fields[i] = self.learning_rate * (2 * self.former_vector_fields[i] + self.grad_E_similarity(fixed_data=fixed_images[j], moving_data=moving_images[i], Dphi=self.backward_jacobian_determinants[j]))
-    #         self.latter_delta_vector_fields[i] = self.learning_rate * (2 * self.latter_vector_fields[i] + self.grad_E_similarity(fixed_data=moving_images[j], moving_data=fixed_images[i], Dphi=self.forward_jacobian_determinants[i]))
-
-    #     self.former_vector_fields -= self.former_delta_vector_fields
-    #     self.latter_vector_fields -= self.latter_delta_vector_fields
-
-    #     self.integrate_vector_fields()
-
     def update(self, fixed_images, moving_images, learning_rate):
         """
         update deformation using gradient descent method
@@ -722,34 +664,6 @@ class SyN(DiffeormorphicDeformation):
         self.latter_vector_fields -= self.latter_delta_vector_fields
 
         self.integrate_vector_fields()
-
-    def integrate_vector_fields_old(self):
-        for i in xrange(self.half_deformation_step):
-            v = 0.5 * (self.former_vector_fields[i] + self.former_vector_fields[i + 1])
-            self.forward_mappings[i + 1] = self.euler_integration(self.forward_mappings[i], self.forward_jacobian_matrixs[i], v)
-
-            v = 0.5 * (self.latter_vector_fields[-i - 1] + self.latter_vector_fields[-i - 2])
-            self.backward_mappings[i + 1] = self.euler_integration(self.backward_mappings[i], self.backward_jacobian_matrixs[i], v)
-
-            self.forward_jacobian_matrixs[i + 1] = jacobian_matrix(self.forward_mappings[i + 1])
-            self.backward_jacobian_matrixs[i + 1] = jacobian_matrix(self.backward_mappings[i + 1])
-
-            self.forward_jacobian_determinants[i + 1] = determinant(self.forward_jacobian_matrixs[i + 1])
-            self.backward_jacobian_determinants[i + 1] = determinant(self.backward_jacobian_matrixs[i + 1])
-
-        for i in xrange(self.half_deformation_step):
-            j = i + self.half_deformation_step
-            v = - 0.5 * (self.latter_vector_fields[-i] + self.latter_vector_fields[-i-1])
-            self.forward_mappings[j+1] = self.euler_integration(self.forward_mappings[j], self.forward_jacobian_matrixs[j], v)
-
-            v = - 0.5 * (self.former_vector_fields[-i] + self.former_vector_fields[-i-1])
-            self.backward_mappings[j+1] = self.euler_integration(self.backward_mappings[j], self.backward_jacobian_matrixs[j], v)
-
-            self.forward_jacobian_matrixs[j+1] = jacobian_matrix(self.forward_mappings[j+1])
-            self.backward_jacobian_matrixs[j+1] = jacobian_matrix(self.backward_mappings[j+1])
-
-            self.forward_jacobian_determinants[j+1] = determinant(self.forward_jacobian_matrixs[j+1])
-            self.backward_jacobian_determinants[j+1] = determinant(self.backward_jacobian_matrixs[j+1])
 
     def integrate_vector_fields(self):
         forward_jacobian_matrix = jacobian_matrix(self.identity_mapping)
