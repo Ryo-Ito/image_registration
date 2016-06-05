@@ -82,4 +82,4 @@ def test3():
     warped_img.save(filename=join(dname, 'LDDMM/02warpedto01.nii'), affine=fixed_img.get_affine())
 
 if __name__ == '__main__':
-    test2()
+    test1()

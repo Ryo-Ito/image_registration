@@ -338,17 +338,17 @@ class DiffeormorphicDeformation(object):
         self.set_metric_kernel()
         self.set_vectorize_operator()
 
-    def initialize_mappings_old(self):
-        self.identity_mapping = self.get_identity_mapping()
+    # def initialize_mappings_old(self):
+    #     self.identity_mapping = self.get_identity_mapping()
 
-        self.forward_mappings = np.ones((self.deformation_step + 1, self.ndim) + self.shape) * self.identity_mapping
-        self.backward_mappings = np.copy(self.forward_mappings)
+    #     self.forward_mappings = np.ones((self.deformation_step + 1, self.ndim) + self.shape) * self.identity_mapping
+    #     self.backward_mappings = np.copy(self.forward_mappings)
 
-        self.forward_jacobian_matrixs = np.ones((self.deformation_step + 1, self.ndim, self.ndim) + self.shape) * jacobian_matrix(self.identity_mapping)
-        self.backward_jacobian_matrixs = np.copy(self.forward_jacobian_matrixs)
+    #     self.forward_jacobian_matrixs = np.ones((self.deformation_step + 1, self.ndim, self.ndim) + self.shape) * jacobian_matrix(self.identity_mapping)
+    #     self.backward_jacobian_matrixs = np.copy(self.forward_jacobian_matrixs)
 
-        self.forward_jacobian_determinants = np.ones((self.deformation_step + 1,) + self.shape)
-        self.backward_jacobian_determinants = np.copy(self.forward_jacobian_determinants)
+    #     self.forward_jacobian_determinants = np.ones((self.deformation_step + 1,) + self.shape)
+    #     self.backward_jacobian_determinants = np.copy(self.forward_jacobian_determinants)
 
     def initialize_mappings(self):
         self.identity_mapping = self.get_identity_mapping()
@@ -373,7 +373,7 @@ class DiffeormorphicDeformation(object):
             'ssd': Sum of Squared Difference
             'cc': Cross Correlation
         """
-        all_similarity_metric = ['ssd', 'cc']
+        all_similarity_metric = ['ssd', 'cc', 'mc']
         if similarity_metric in all_similarity_metric:
             self.similarity_metric = similarity_metric
         else:
@@ -386,6 +386,18 @@ class DiffeormorphicDeformation(object):
                 self.window_length = 5
 
             self.window_size = self.window_length ** self.ndim
+
+        if self.similarity_metric == 'mc':
+            try:
+                self.mahalanobis_matrix = args[0]
+                self.window_size = len(self.mahalanobis_matrix)
+                self.window_length = int(np.round(self.window_size ** (1 / self.ndim)))
+                assert(self.window_length ** self.ndim == self.window_size)
+                assert(self.window_length % 2 == 1)
+            except:
+                self.similarity_metric == 'cc'
+                self.window_length = 5
+                self.window_size = self.window_length ** self.ndim
 
     def get_identity_mapping(self, shape=None):
         if shape is None:

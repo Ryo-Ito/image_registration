@@ -1,6 +1,6 @@
 import numpy as np
-from images import SequentialScalarImages
-import deformations
+from images import ScalarImage, SequentialScalarImages
+from deformations import Transformation, LDDMM, SyN
 from imageprocessing import interpolate_mapping
 
 class Registration(object):
@@ -105,13 +105,13 @@ class Registration(object):
         return finish_update
 
     def execute(self):
-        if isinstance(self.deformation, deformations.SyN):
+        if isinstance(self.deformation, SyN):
             return self.two_way_registration()
         else:
             return self.one_way_registration()
 
     def one_way_registration(self):
-        transform = deformations.Transformation(shape=self.shape)
+        transform = Transformation(shape=self.shape)
         for max_iter, resolution, sigma in zip(self.maximum_iterations, self.resolution_level, self.smoothing_sigma):
             print "============================"
             print "resolution", resolution
@@ -152,10 +152,10 @@ class Registration(object):
         return transform
 
     def two_way_registration(self):
-        forward_transform = deformations.Transformation(shape=self.shape)
-        forward_transform_inverse = deformations.Transformation(shape=self.shape)
-        backward_transform = deformations.Transformation(shape=self.shape)
-        backward_transform_inverse = deformations.Transformation(shape=self.shape)
+        forward_transform = Transformation(shape=self.shape)
+        forward_transform_inverse = Transformation(shape=self.shape)
+        backward_transform = Transformation(shape=self.shape)
+        backward_transform_inverse = Transformation(shape=self.shape)
         index_half = int(self.deformation_step / 2)
 
         for max_iter, resolution, sigma in zip(self.maximum_iterations, self.resolution_level, self.smoothing_sigma):
@@ -209,18 +209,149 @@ class Registration(object):
 
         return forward_transform, backward_transform
 
+def estimate_transform_LDDMM(args):
+    fixed_img = ScalarImage(args.fixed)
+    moving_img = ScalarImage(args.moving)
+
+    deformation = LDDMM(ndim=fixed_img.ndim, deformation_step=args.deformation_step, penalty=args.penalty, time_interval=args.time_interval)
+    deformation.set_prior_parameter(alpha=args.alpha, gamma=args.gamma, beta=args.beta)
+    deformation.set_similarity_metric(args.similarity_metric, args.window_length)
+
+    reg = Registration(energy_threshold=args.energy_threshold,
+                       unit_threshold=args.unit_threshold,
+                       learning_rate=args.learning_rate)
+    reg.set_deformation(deformation=deformation)
+    reg.set_maximum_iterations(maximum_iterations=args.maximum_iterations)
+    reg.set_resolution_level(resolution_level=args.resolution_level)
+    reg.set_smoothing_sigma(smoothing_sigma=args.smoothing_sigma)
+    reg.set_images(fixed_img=fixed_img, moving_img=moving_img)
+
+    transform = reg.execute()
+
+    transform.save(filename=args.output, affine=fixed_img.get_affine())
+
+def estimate_transform_SyN(args):
+    fixed_img = ScalarImage(args.fixed)
+    moving_img = ScalarImage(args.moving)
+
+    deformation = SyN(ndim=fixed_img.ndim, deformation_step=args.deformation_step, penalty=args.penalty, time_interval=args.time_interval)
+    deformation.set_prior_parameter(alpha=args.alpha, gamma=args.gamma, beta=args.beta)
+    deformation.set_similarity_metric(args.similarity_metric, args.window_length)
+
+    reg = Registration(energy_threshold=args.energy_threshold,
+                       unit_threshold=args.unit_threshold,
+                       learning_rate=args.learning_rate)
+    reg.set_deformation(deformation=deformation)
+    reg.set_maximum_iterations(maximum_iterations=args.maximum_iterations)
+    reg.set_resolution_level(resolution_level=args.resolution_level)
+    reg.set_smoothing_sigma(smoothing_sigma=args.smoothing_sigma)
+    reg.set_images(fixed_img=fixed_img, moving_img=moving_img)
+
+    transform, inverse_transform = reg.execute()
+
+    transform.save(filename=args.output, affine=fixed_img.get_affine())
+
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description='estimating transformation from a moving image to a template image')
 
-    parser.add_argument('--dimension', '-d', type=int, help='dimension of the space: 2 or 3')
-    parser.add_argument('--metric', '-m', default='cc', type=str, help='metric to calculate image difference or similarity: ssd, cc')
-    parser.add_argument('--transformation', default='SyN', type=str, help='transformation type: LDDMM, SyN')
-    parser.add_argument('--target', '-t', type=str, help='fixed image file')
-    parser.add_argument('--input', '-i', type=str, help='moving image file')
-    parser.add_argument('--output', '-o', type=str, help='output file without extension')
+    parser = argparse.ArgumentParser(description='estimating transformation from a moivng image to a fixed image', formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('-m', '--moving',
+                        type=str,
+                        help='moving image file')
+    parser.add_argument('-f', '--fixed',
+                        type=str,
+                        help='fixed image file')
+    parser.add_argument('-s', '--similarity_metric',
+                        choices=['cc', 'ssd', 'mc'],
+                        default='cc',
+                        help='similarity metric to evaluate how similar two images are.\nChoose one of the following similarity metric\n    cc: zero means normalized Cross Correlation\n    ssd: Sum of Squared Difference\n    mc: mahalanobis cosine similarity\nDefault: cc')
+    parser.add_argument('--window_length',
+                        type=int,
+                        help='length of window when calculating cross correlation\nDefault: 5(cc), None(ssd)')
+    parser.add_argument('-t', '--transformation',
+                        choices=['LDDMM', 'SyN'],
+                        default='SyN',
+                        type=str,
+                        help='transformation type\nDefault: SyN')
+    parser.add_argument('-o', '--output',
+                        default='output_warp.nii.gz',
+                        type=str,
+                        help='output transformation file\nDefault: output_warp.nii.gz')
+    parser.add_argument('--deformation_step',
+                        default=32,
+                        type=int,
+                        help='number of steps to deform images\nDefault: 32')
+    parser.add_argument('--time_interval',
+                        default=1.,
+                        type=float,
+                        help='length of time interval of transformation\nDefault: 1.')
+    parser.add_argument('--penalty',
+                        type=float,
+                        help='penalty coefficient for vector field\nDefault: 0.0001(cc), 1000(ssd)')
+    parser.add_argument('--alpha',
+                        default=1.,
+                        type=float,
+                        help='penalty coefficient for convexity of vector field\nDefault: 1.')
+    parser.add_argument('--beta',
+                        default=2,
+                        type=int,
+                        help='as this number increases, higher the derivatives be\nDefault: 2.')
+    parser.add_argument('--gamma',
+                        default=1.,
+                        type=float,
+                        help='penalty coefficient for norm of vector\nDefault: 1.')
+    parser.add_argument('--energy_threshold',
+                        default=0.0001,
+                        type=float,
+                        help='threshold value of update ratio of cost function\nDefault: 0.0001')
+    parser.add_argument('--unit_threshold',
+                        default=0.2,
+                        type=float,
+                        help='threshold value of jacobian determinant of mapping function\nDefault: 0.2')
+    parser.add_argument('--learning_rate',
+                        type=float,
+                        help='learning rate of updating estimate of vector field\nDefault: 0.01(cc), 0.1(ssd)')
+    parser.add_argument('--maximum_iterations',
+                        default=[50, 20, 10],
+                        type=int,
+                        nargs='*',
+                        action='store',
+                        help='maximum number of updating estimate of vector field\nDefault: [50, 20, 10]')
+    parser.add_argument('--resolution_level',
+                        default=[4,2,1],
+                        type=int,
+                        nargs='*',
+                        action='store',
+                        help='resolution at each level\nDefault: [4, 2, 1]')
+    parser.add_argument('--smoothing_sigma',
+                        type=int,
+                        nargs='*',
+                        action='store',
+                        help='values of smoothing sigma at each level\nDefault: [2, 1, 1](cc), [2, 1, 0](ssd)')
 
     args = parser.parse_args()
+
+    if args.similarity_metric == 'cc':
+        if args.window_length is None:
+            args.window_length = 5
+        if args.penalty is None:
+            args.penalty = 0.0001
+        if args.learning_rate is None:
+            args.learning_rate = 0.01
+        if args.smoothing_sigma is None:
+            args.smoothing_sigma = [2, 1, 1]
+    elif args.similarity_metric == 'ssd':
+        if args.penalty is None:
+            args.penalty = 1000
+        if args.learning_rate is None:
+            args.learning_rate = 0.1
+        if args.smoothing_sigma is None:
+            args.smoothing_sigma = [2, 1, 0]
+
+    if args.transformation == 'LDDMM':
+        estimate_transform_LDDMM(args)
+    elif args.transformation == 'SyN':
+        estimate_transform_SyN(args)
 
 if __name__ == '__main__':
     main()
