@@ -10,7 +10,7 @@ try:
     from pyfftw.interfaces.scipy_fftpack import fftn, ifftn
 except ImportError:
     from scipy.fftpack import fftn, ifftn
-from imageprocessing import gradient, uniform_filter
+from imageprocessing import gradient, uniform_filter, sliding_matrix_product
 
 np.seterr(all='ignore')
 
@@ -516,6 +516,46 @@ class DiffeormorphicDeformation(object):
 
         return 2 * f / self.penalty
 
+    def momentum_mc(self, J, I, Dphi):
+        """
+        Not-smoothed vector field derived from the current moving image, fixed image, and space
+
+        Parameters
+        ----------
+        J : ndarray
+            Input deformed fixed image.
+            eg. 3 dimensional case (len(x), len(y), len(z))
+        I : ndarray
+            Input deformed moving image.
+        Dphi : ndarray
+            Jacobian determinant of current space
+
+        Returns
+        -------
+        momentum : ndarray
+            Unsmoothed vector field
+        """
+        index = int((self.window_size - 1) / 2)
+        Ai = sliding_matrix_product(I, self.mahalanobis_matrix)
+        Aj = sliding_matrix_product(J, self.mahalanobis_matrix)
+        Ibar = Ai[...,index]
+        Jbar = Aj[...,index]
+
+        # AAi = sliding_matrix_product(I, np.dot(self.mahalanobis_matrix.T, self.mahalanobis_matrix))
+        # AAj = sliding_matrix_product(J, np.dot(self.mahalanobis_matrix.T, self.mahalanobis_matrix))
+
+        II = np.einsum('...i,...i->...', Ai, Ai)
+        JJ = np.einsum('...i,...i->...', Aj, Aj)
+        IJ = np.einsum('...i,...i->...', Ai, Aj)
+        IIJJ = II * JJ
+        IJoverIIJJ = IJ / IIJJ
+        IJoverII = IJ / II
+        IJoverIIJJ[np.where(IIJJ < 1e-3)] = 0
+        IJoverII[np.where(II < 1e-3)] = 0
+
+        f = gradient(Ibar) * IJoverIIJJ * (Jbar - IJoverII * Ibar) * Dphi
+        return 2 * f / self.penalty
+
     def momentum_mi(self, fixed, moving, Dphi):
         pass
 
@@ -542,6 +582,8 @@ class DiffeormorphicDeformation(object):
             return self.momentum_ssd(fixed, moving, Dphi)
         elif self.similarity_metric is 'cc':
             return self.momentum_cc(fixed, moving, Dphi)
+        elif self.similarity_metric is 'mc':
+            return self.momentum_mc(fixed, moving, Dphi)
         else:
             raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
 
@@ -573,6 +615,8 @@ class DiffeormorphicDeformation(object):
             return similarity_energy_ssd(data1, data2)
         elif self.similarity_metric == 'cc':
             return similarity_energy_cc(data1, data2, self.window_length, self.window_size)
+        elif self.similarity_metric == 'mc':
+            return similarity_energy_mc(data1, data2, self.mahalanobis_matrix)
 
 
 class LDDMM(DiffeormorphicDeformation):
@@ -863,4 +907,17 @@ def similarity_energy_cc(I, J, window_length, window_size):
     IJ = uniform_filter(I * J, window_length) - window_size * Im * Jm
     E = (IJ ** 2) / (II * JJ)
     E[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
+    return - np.sum(E)
+
+def similarity_energy_mc(I, J, matrix):
+    Ai = sliding_matrix_product(I, matrix)
+    Aj = sliding_matrix_product(J, matrix)
+
+    II = np.einsum('...i,...i->...', Ai, Ai)
+    JJ = np.einsum('...i,...i->...', Aj, Aj)
+    IJ = np.einsum('...i,...i->...', Ai, Aj)
+    IIJJ = II * JJ
+    E = (IJ ** 2) / IIJJ
+    E[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
+
     return - np.sum(E)
