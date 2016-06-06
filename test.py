@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.ndimage.filters import uniform_filter
 from deformations import LDDMM
-from cythonTool import uniformFilter
+from imageprocessing import sliding_matrix_product
 
 
 def check_vector_field_smoothing():
@@ -156,5 +156,13 @@ def test_module():
     # print np.allclose(A, B)
     # print np.allclose(A, B.transpose(2,1,0))
 
+def test_slide_dot_matrix():
+    A = np.random.randint(0,200,(200,100, 200)).astype(np.float)
+    matrix = np.identity(27)
+    result = sliding_matrix_product(A, matrix)
+    print result.shape
+    print A[0:3,0:3,0:3]
+    print result[0,0,0]
+
 if __name__ == '__main__':
-    test_module()
+    test_slide_dot_matrix()
