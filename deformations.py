@@ -338,18 +338,6 @@ class DiffeormorphicDeformation(object):
         self.set_metric_kernel()
         self.set_vectorize_operator()
 
-    # def initialize_mappings_old(self):
-    #     self.identity_mapping = self.get_identity_mapping()
-
-    #     self.forward_mappings = np.ones((self.deformation_step + 1, self.ndim) + self.shape) * self.identity_mapping
-    #     self.backward_mappings = np.copy(self.forward_mappings)
-
-    #     self.forward_jacobian_matrixs = np.ones((self.deformation_step + 1, self.ndim, self.ndim) + self.shape) * jacobian_matrix(self.identity_mapping)
-    #     self.backward_jacobian_matrixs = np.copy(self.forward_jacobian_matrixs)
-
-    #     self.forward_jacobian_determinants = np.ones((self.deformation_step + 1,) + self.shape)
-    #     self.backward_jacobian_determinants = np.copy(self.forward_jacobian_determinants)
-
     def initialize_mappings(self):
         self.identity_mapping = self.get_identity_mapping()
 
@@ -542,9 +530,6 @@ class DiffeormorphicDeformation(object):
         Aj = sliding_matrix_product(J, self.mahalanobis_matrix)
         Ibar = np.copy(Ai[...,index])
         Jbar = np.copy(Aj[...,index])
-
-        # AAi = sliding_matrix_product(I, np.dot(self.mahalanobis_matrix.T, self.mahalanobis_matrix))
-        # AAj = sliding_matrix_product(J, np.dot(self.mahalanobis_matrix.T, self.mahalanobis_matrix))
 
         II = np.einsum('...i,...i->...', Ai, Ai)
         JJ = np.einsum('...i,...i->...', Aj, Aj)
