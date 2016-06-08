@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.ndimage.filters import uniform_filter
 from deformations import LDDMM
-from imageprocessing import sliding_matrix_product
+from imageprocessing import gradient, uniform_filter, sliding_matrix_product
 
 
 def check_vector_field_smoothing():
@@ -157,12 +157,26 @@ def test_module():
     # print np.allclose(A, B.transpose(2,1,0))
 
 def test_slide_dot_matrix():
-    A = np.random.randint(0,200,(200,100, 200)).astype(np.float)
-    matrix = np.identity(27)
-    result = sliding_matrix_product(A, matrix)
-    print result.shape
-    print A[0:3,0:3,0:3]
-    print result[0,0,0]
+    I = np.random.randint(0,200,(50,50)).astype(np.float)
+    J = np.random.randint(0,200,(50,50)).astype(np.float)
+    A = np.identity(25) - np.ones((25,25)) / 25
+    # A = np.identity(25)
+    Ai = sliding_matrix_product(I, A)
+    Aj = sliding_matrix_product(J, A)
+    Im = uniform_filter(I, 5) / 25
+    Jm = uniform_filter(J, 5) / 25
+    Ibar = I - Im
+    Jbar = J - Jm
+    print np.allclose(Ai[...,12], Ibar)
+    print np.allclose(Aj[...,12], Jbar)
+
+    II = uniform_filter(I ** 2, 5) - (Im ** 2) * 25
+    JJ = uniform_filter(J ** 2, 5) - 25 * Jm * Jm
+    ii = np.einsum('...i,...i->...', Ai, Ai)
+    jj = np.einsum('...i,...i->...', Aj, Aj)
+    print np.allclose(II, ii)
+    print np.allclose(JJ, jj)
+
 
 if __name__ == '__main__':
     test_slide_dot_matrix()

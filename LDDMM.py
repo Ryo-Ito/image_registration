@@ -60,8 +60,8 @@ def test2():
 def test3():
     home = expanduser('~')
     dname = join(home, 'registration/img/IBSR/from02to01')
-    fixed_img_file = join(dname, 'IBSR01.nii')
-    moving_img_file = join(dname, 'from02to01affine.nii.gz')
+    fixed_img_file = join(dname, 'fixed_image/IBSR_01.nii')
+    moving_img_file = join(dname, 'moving_image/IBSR_02_affine.nii.gz')
 
     fixed_img = ScalarImage(filename=fixed_img_file)
     moving_img = ScalarImage(filename=moving_img_file)
@@ -90,7 +90,7 @@ def test4():
 
     fixed_img = ScalarImage(filename=fixed_img_file)
     moving_img = ScalarImage(filename=moving_img_file)
-    metric_matrix = np.identity(125)
+    metric_matrix = np.identity(125) - np.ones((125,125)) / 125
 
     deformation = LDDMM(ndim=fixed_img.ndim, deformation_step=32, penalty=0.0001, time_interval=1.)
     deformation.set_prior_parameter(alpha=2.)

@@ -535,11 +535,13 @@ class DiffeormorphicDeformation(object):
         momentum : ndarray
             Unsmoothed vector field
         """
+        assert(I.dtype == np.float)
+        assert(J.dtype == np.float)
         index = int((self.window_size - 1) / 2)
         Ai = sliding_matrix_product(I, self.mahalanobis_matrix)
         Aj = sliding_matrix_product(J, self.mahalanobis_matrix)
-        Ibar = Ai[...,index]
-        Jbar = Aj[...,index]
+        Ibar = np.copy(Ai[...,index])
+        Jbar = np.copy(Aj[...,index])
 
         # AAi = sliding_matrix_product(I, np.dot(self.mahalanobis_matrix.T, self.mahalanobis_matrix))
         # AAj = sliding_matrix_product(J, np.dot(self.mahalanobis_matrix.T, self.mahalanobis_matrix))
@@ -552,8 +554,8 @@ class DiffeormorphicDeformation(object):
         IJoverII = IJ / II
         IJoverIIJJ[np.where(IIJJ < 1e-3)] = 0
         IJoverII[np.where(II < 1e-3)] = 0
+        f = gradient(Ibar) * IJoverIIJJ * (Jbar - Ibar * IJoverII) * Dphi
 
-        f = gradient(Ibar) * IJoverIIJJ * (Jbar - IJoverII * Ibar) * Dphi
         return 2 * f / self.penalty
 
     def momentum_mi(self, fixed, moving, Dphi):

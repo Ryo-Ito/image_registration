@@ -12,7 +12,7 @@ class Registration(object):
         self.learning_rate = learning_rate
         print "threshold value for update ratio of cost function", energy_threshold
         print "threshold value for jacobian determinant of mapping function", unit_threshold
-        print "leaning rate", learning_rate
+        print "learning rate", learning_rate
 
     def set_deformation(self, deformation):
         self.deformation = deformation
