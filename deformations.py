@@ -10,7 +10,12 @@ try:
     from pyfftw.interfaces.scipy_fftpack import fftn, ifftn
 except ImportError:
     from scipy.fftpack import fftn, ifftn
-from imageprocessing import gradient, uniform_filter, sliding_matrix_product
+from imageprocessing import gradient, uniform_filter
+try:
+    from gpgpu import sliding_matrix_multiply as smm
+except:
+    print "sliding matrix multiplication will be calculated using cython function"
+    from imageprocessing import sliding_matrix_product as smm
 
 np.seterr(all='ignore')
 
@@ -526,10 +531,10 @@ class DiffeormorphicDeformation(object):
         assert(I.dtype == np.float)
         assert(J.dtype == np.float)
         index = int((self.window_size - 1) / 2)
-        Ai = sliding_matrix_product(I, self.mahalanobis_matrix)
-        Aj = sliding_matrix_product(J, self.mahalanobis_matrix)
-        Ibar = np.copy(Ai[...,index])
-        Jbar = np.copy(Aj[...,index])
+        Ai = smm(I, self.mahalanobis_matrix)
+        Aj = smm(J, self.mahalanobis_matrix)
+        Ibar = np.copy(Ai[...,index]).astype(np.float)
+        Jbar = np.copy(Aj[...,index]).astype(np.float)
 
         II = np.einsum('...i,...i->...', Ai, Ai)
         JJ = np.einsum('...i,...i->...', Aj, Aj)
@@ -726,17 +731,17 @@ class SyN(DiffeormorphicDeformation):
 
         for i in xrange(self.half_deformation_step):
             j = i + self.half_deformation_step
-            v = - 0.5 * (self.latter_vector_fields[-i] + self.latter_vector_fields[-i-1])
-            self.forward_mappings[j+1] = self.euler_integration(self.forward_mappings[j], forward_jacobian_matrix, v)
+            v = - 0.5 * (self.latter_vector_fields[-i] + self.latter_vector_fields[-i - 1])
+            self.forward_mappings[j + 1] = self.euler_integration(self.forward_mappings[j], forward_jacobian_matrix, v)
 
-            v = - 0.5 * (self.former_vector_fields[-i] + self.former_vector_fields[-i-1])
-            self.backward_mappings[j+1] = self.euler_integration(self.backward_mappings[j], backward_jacobian_matrix, v)
+            v = - 0.5 * (self.former_vector_fields[-i] + self.former_vector_fields[-i - 1])
+            self.backward_mappings[j + 1] = self.euler_integration(self.backward_mappings[j], backward_jacobian_matrix, v)
 
-            forward_jacobian_matrix = jacobian_matrix(self.forward_mappings[j+1])
-            backward_jacobian_matrix = jacobian_matrix(self.backward_mappings[j+1])
+            forward_jacobian_matrix = jacobian_matrix(self.forward_mappings[j + 1])
+            backward_jacobian_matrix = jacobian_matrix(self.backward_mappings[j + 1])
 
-            self.forward_jacobian_determinants[j+1] = determinant(forward_jacobian_matrix)
-            self.backward_jacobian_determinants[j+1] = determinant(backward_jacobian_matrix)
+            self.forward_jacobian_determinants[j + 1] = determinant(forward_jacobian_matrix)
+            self.backward_jacobian_determinants[j + 1] = determinant(backward_jacobian_matrix)
 
     def get_energy(self, data1, data2):
         E_simi = self.get_similarity_energy(data1, data2)
@@ -754,7 +759,7 @@ class SyN(DiffeormorphicDeformation):
     def get_forward_mapping_inverse(self):
         inverse_mapping = np.copy(self.identity_mapping)
         for i in xrange(self.half_deformation_step):
-            v = - 0.5 * (self.former_vector_fields[-i-1] + self.former_vector_fields[-i-2])
+            v = - 0.5 * (self.former_vector_fields[-i - 1] + self.former_vector_fields[-i - 2])
             inverse_mapping = self.euler_integration(inverse_mapping, jacobian_matrix(inverse_mapping), v)
 
         return inverse_mapping
@@ -765,7 +770,7 @@ class SyN(DiffeormorphicDeformation):
     def get_backward_mapping_inverse(self):
         inverse_mapping = np.copy(self.identity_mapping)
         for i in xrange(self.half_deformation_step):
-            v = - 0.5 * (self.latter_vector_fields[-i-1] + self.latter_vector_fields[-i-2])
+            v = - 0.5 * (self.latter_vector_fields[-i - 1] + self.latter_vector_fields[-i - 2])
             inverse_mapping = self.euler_integration(inverse_mapping, jacobian_matrix(inverse_mapping), v)
         return inverse_mapping
 
@@ -897,8 +902,8 @@ def similarity_energy_cc(I, J, window_length, window_size):
     return - np.sum(E)
 
 def similarity_energy_mc(I, J, matrix):
-    Ai = sliding_matrix_product(I, matrix)
-    Aj = sliding_matrix_product(J, matrix)
+    Ai = smm(I, matrix)
+    Aj = smm(J, matrix)
 
     II = np.einsum('...i,...i->...', Ai, Ai)
     JJ = np.einsum('...i,...i->...', Aj, Aj)
