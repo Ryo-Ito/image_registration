@@ -89,20 +89,35 @@ class Registration(object):
         return interpolated_mapping
 
     def check_one_to_one(self):
-        min_unit = self.deformation.get_minimum_unit()
-        if min_unit < self.unit_threshold:
+        self.min_unit = self.deformation.get_minimum_unit()
+        if self.min_unit < self.unit_threshold:
             self.deformation.back_to_previous_deformation()
             print "reached limit of jacobian determinant"
             # self.learning_rate *= 0.1
-        else:
-            print "minimum unit", min_unit
-        return min_unit > self.unit_threshold
+        return self.min_unit > self.unit_threshold
 
     def check_energy_update(self, I, J):
         energy = self.deformation.get_energy(I, J)
         finish_update = 2 * abs(self.energy - energy) / abs(self.energy + energy) < self.energy_threshold
         self.energy = energy
         return finish_update
+
+    def check_convergence(self, max_iter):
+        """
+        returns whether it reached convergence or not
+
+        Parameters
+        ----------
+        max_iter : int
+            number of maximum iteration
+
+        Returns
+        -------
+        finish_update : bool
+            finished updates if True else not.
+        """
+        v_norm = self.deformation.delta_norm()
+        return (v_norm * self.deformation_step * max_iter < 1.)
 
     def execute(self):
         if isinstance(self.deformation, SyN):
@@ -139,10 +154,12 @@ class Registration(object):
                 deformed_moving_images.apply_transforms(self.deformation.forward_mappings)
                 deformed_fixed_images.apply_transforms(self.deformation.backward_mappings)
 
-                finish_update = self.check_energy_update(deformed_fixed_images[0], deformed_moving_images[-1])
-                print "iteration%4d, Energy %f" % (i + 1, self.energy)
-                if finish_update:
-                    print "|update ratio of cost function| < threshold value = %f" % self.energy_threshold
+                print "iteration%4d, Energy %f" % (i + 1, self.deformation.get_energy(deformed_fixed_images[0], deformed_moving_images[-1]))
+                v_norm = self.deformation.delta_norm()
+                print 14 * ' ', "minimum unit", self.min_unit
+                print 14 * ' ', "v_norm", v_norm
+                if v_norm * self.deformation_step * (max_iter - i) < 1:
+                    print "|maximum norm of displacement| x iteration < 1 voxel"
                     break
 
             mapping = self.zoom_mapping(self.deformation.get_forward_mapping(), resolution)
@@ -186,10 +203,12 @@ class Registration(object):
                 deformed_moving_images.apply_transforms(self.deformation.forward_mappings)
                 deformed_fixed_images.apply_transforms(self.deformation.backward_mappings)
 
-                finish_update = self.check_energy_update(deformed_fixed_images[index_half], deformed_moving_images[index_half])
-                print "iteration%4d, Energy %f" % (i + 1, self.energy)
-                if finish_update:
-                    print "|delta E| < threshold value = %f" % self.energy_threshold
+                print "iteration%4d, Energy %f" % (i + 1, self.deformation.get_energy(deformed_fixed_images[0], deformed_moving_images[-1]))
+                v_norm = self.deformation.delta_norm()
+                print 14 * ' ', "minimum unit", self.min_unit
+                print 14 * ' ', "v_norm", v_norm
+                if v_norm * self.deformation_step * (max_iter - i) < 1:
+                    print "|maximum norm of displacement| x iteration < 1 voxel"
                     break
 
             forward_mapping = self.zoom_mapping(self.deformation.get_forward_mapping(), resolution)

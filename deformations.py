@@ -658,12 +658,19 @@ class LDDMM(DiffeormorphicDeformation):
             self.backward_jacobian_determinants[i + 1] = determinant(backward_jacobian_matrix)
 
     def get_energy(self, data1, data2):
-        # E_v = 0
-        # for i in xrange(self.deformation_step):
-        #     E_v += np.sum(convolve_vector(self.vector_fields[i], self.metric_kernel) * self.vector_fields[i]) * self.delta_time
         E_simi = self.get_similarity_energy(data1, data2)
-        # return E_v * self.penalty + E_simi
         return E_simi
+
+    def delta_norm(self):
+        """
+        returns L_{infty} norm of vector fields
+
+        Returns
+        -------
+        ||v||_infty : np.float
+            maximum length of vectors in the vector fields
+        """
+        return np.max(np.abs(self.delta_vector_fields))
 
     def back_to_previous_deformation(self):
         self.vector_fields += self.delta_vector_fields
@@ -746,6 +753,19 @@ class SyN(DiffeormorphicDeformation):
     def get_energy(self, data1, data2):
         E_simi = self.get_similarity_energy(data1, data2)
         return E_simi
+
+    def delta_norm(self):
+        """
+        returns L_{infty} norm of vector fields
+
+        Returns
+        -------
+        ||v||_infty : np.float
+            maximum length of vectors in the vector fields
+        """
+        f = np.max(np.abs(self.former_delta_vector_fields))
+        b = np.max(np.abs(self.latter_delta_vector_fields))
+        return max(f, b)
 
     def back_to_previous_deformation(self):
         self.former_vector_fields += self.former_delta_vector_fields
