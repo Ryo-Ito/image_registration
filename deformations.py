@@ -644,6 +644,8 @@ class LDDMM(DiffeormorphicDeformation):
         forward_jacobian_matrix = jacobian_matrix(self.forward_mappings[0])
         backward_jacobian_matrix = np.copy(forward_jacobian_matrix)
 
+        forward_mapping_before = np.copy(self.forward_mappings[-1])
+
         for i in xrange(self.deformation_step):
             v = 0.5 * (self.vector_fields[i] + self.vector_fields[i + 1])
             self.forward_mappings[i + 1] = self.euler_integration(self.forward_mappings[i], forward_jacobian_matrix, v)
@@ -657,20 +659,11 @@ class LDDMM(DiffeormorphicDeformation):
             self.forward_jacobian_determinants[i + 1] = determinant(forward_jacobian_matrix)
             self.backward_jacobian_determinants[i + 1] = determinant(backward_jacobian_matrix)
 
+        self.delta_phi_norm = np.max(np.abs(self.forward_mappings[-1] - forward_mapping_before))
+
     def get_energy(self, data1, data2):
         E_simi = self.get_similarity_energy(data1, data2)
         return E_simi
-
-    def delta_norm(self):
-        """
-        returns L_{infty} norm of vector fields
-
-        Returns
-        -------
-        ||v||_infty : np.float
-            maximum length of vectors in the vector fields
-        """
-        return np.max(np.abs(self.delta_vector_fields))
 
     def back_to_previous_deformation(self):
         self.vector_fields += self.delta_vector_fields
@@ -723,6 +716,9 @@ class SyN(DiffeormorphicDeformation):
     def integrate_vector_fields(self):
         forward_jacobian_matrix = jacobian_matrix(self.identity_mapping)
         backward_jacobian_matrix = np.copy(forward_jacobian_matrix)
+
+        forward_mapping_before = np.copy(self.forward_mappings[-1])
+
         for i in xrange(self.half_deformation_step):
             v = 0.5 * (self.former_vector_fields[i] + self.former_vector_fields[i + 1])
             self.forward_mappings[i + 1] = self.euler_integration(self.forward_mappings[i], forward_jacobian_matrix, v)
@@ -750,22 +746,11 @@ class SyN(DiffeormorphicDeformation):
             self.forward_jacobian_determinants[j + 1] = determinant(forward_jacobian_matrix)
             self.backward_jacobian_determinants[j + 1] = determinant(backward_jacobian_matrix)
 
+        self.delta_phi_norm = np.max(np.abs(self.forward_mappings[-1] - forward_mapping_before))
+
     def get_energy(self, data1, data2):
         E_simi = self.get_similarity_energy(data1, data2)
         return E_simi
-
-    def delta_norm(self):
-        """
-        returns L_{infty} norm of vector fields
-
-        Returns
-        -------
-        ||v||_infty : np.float
-            maximum length of vectors in the vector fields
-        """
-        f = np.max(np.abs(self.former_delta_vector_fields))
-        b = np.max(np.abs(self.latter_delta_vector_fields))
-        return max(f, b)
 
     def back_to_previous_deformation(self):
         self.former_vector_fields += self.former_delta_vector_fields

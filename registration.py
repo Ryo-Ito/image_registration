@@ -5,12 +5,12 @@ from imageprocessing import interpolate_mapping
 
 class Registration(object):
 
-    def __init__(self, energy_threshold=0., unit_threshold=0., learning_rate=0.1):
-        self.energy_threshold = energy_threshold
+    def __init__(self, delta_phi_threshold=1., unit_threshold=0., learning_rate=0.1):
+        self.delta_phi_threshold = delta_phi_threshold
         self.unit_threshold = unit_threshold
         self.energy = 0.
         self.learning_rate = learning_rate
-        print "threshold value for update ratio of cost function", energy_threshold
+        print "threshold value for maximum update of displacement", delta_phi_threshold
         print "threshold value for jacobian determinant of mapping function", unit_threshold
         print "learning rate", learning_rate
 
@@ -96,29 +96,6 @@ class Registration(object):
             # self.learning_rate *= 0.1
         return self.min_unit > self.unit_threshold
 
-    def check_energy_update(self, I, J):
-        energy = self.deformation.get_energy(I, J)
-        finish_update = 2 * abs(self.energy - energy) / abs(self.energy + energy) < self.energy_threshold
-        self.energy = energy
-        return finish_update
-
-    def check_convergence(self, max_iter):
-        """
-        returns whether it reached convergence or not
-
-        Parameters
-        ----------
-        max_iter : int
-            number of maximum iteration
-
-        Returns
-        -------
-        finish_update : bool
-            finished updates if True else not.
-        """
-        v_norm = self.deformation.delta_norm()
-        return (v_norm * self.deformation_step * max_iter < 1.)
-
     def execute(self):
         if isinstance(self.deformation, SyN):
             return self.two_way_registration()
@@ -141,9 +118,7 @@ class Registration(object):
             deformed_moving_images = SequentialScalarImages(moving_img, self.deformation_step)
             deformed_fixed_images = SequentialScalarImages(fixed_img, self.deformation_step)
 
-            self.energy = self.deformation.get_energy(deformed_fixed_images[0], deformed_moving_images[-1])
-
-            print "iteration   0, Energy %f" % (self.energy)
+            print "iteration   0, Energy %f" % (self.deformation.get_energy(deformed_fixed_images[0], deformed_moving_images[-1]))
 
             for i in xrange(max_iter):
                 self.deformation.update(deformed_fixed_images, deformed_moving_images, self.learning_rate)
@@ -155,11 +130,12 @@ class Registration(object):
                 deformed_fixed_images.apply_transforms(self.deformation.backward_mappings)
 
                 print "iteration%4d, Energy %f" % (i + 1, self.deformation.get_energy(deformed_fixed_images[0], deformed_moving_images[-1]))
-                v_norm = self.deformation.delta_norm()
+                phi_norm = self.deformation.delta_phi_norm
                 print 14 * ' ', "minimum unit", self.min_unit
-                print 14 * ' ', "v_norm", v_norm
-                if v_norm * self.deformation_step * (max_iter - i) < 1:
-                    print "|maximum norm of displacement| x iteration < 1 voxel"
+                print 14 * ' ', "phi_norm", phi_norm
+                print 14 * ' ', "maximum phi_norm", phi_norm * (max_iter - i)
+                if phi_norm * (max_iter - i) < self.delta_phi_threshold:
+                    print "|maximum norm of displacement| x iteration < %f voxel" % (self.delta_phi_threshold)
                     break
 
             mapping = self.zoom_mapping(self.deformation.get_forward_mapping(), resolution)
@@ -173,7 +149,6 @@ class Registration(object):
         forward_transform_inverse = Transformation(shape=self.shape)
         backward_transform = Transformation(shape=self.shape)
         backward_transform_inverse = Transformation(shape=self.shape)
-        index_half = int(self.deformation_step / 2)
 
         for max_iter, resolution, sigma in zip(self.maximum_iterations, self.resolution_level, self.smoothing_sigma):
             print "============================"
@@ -190,9 +165,7 @@ class Registration(object):
             deformed_moving_images = SequentialScalarImages(moving_img, self.deformation_step)
             deformed_fixed_images = SequentialScalarImages(fixed_img, self.deformation_step)
 
-            self.energy = self.deformation.get_energy(moving_img.data, fixed_img.data)
-
-            print "iteration   0, Energy %f" % (self.energy)
+            print "iteration   0, Energy %f" % (self.deformation.get_energy(moving_img.data, fixed_img.data))
 
             for i in xrange(max_iter):
                 self.deformation.update(deformed_fixed_images, deformed_moving_images, self.learning_rate)
@@ -204,11 +177,12 @@ class Registration(object):
                 deformed_fixed_images.apply_transforms(self.deformation.backward_mappings)
 
                 print "iteration%4d, Energy %f" % (i + 1, self.deformation.get_energy(deformed_fixed_images[0], deformed_moving_images[-1]))
-                v_norm = self.deformation.delta_norm()
+                phi_norm = self.deformation.delta_phi_norm
                 print 14 * ' ', "minimum unit", self.min_unit
-                print 14 * ' ', "v_norm", v_norm
-                if v_norm * self.deformation_step * (max_iter - i) < 1:
-                    print "|maximum norm of displacement| x iteration < 1 voxel"
+                print 14 * ' ', "phi_norm", phi_norm
+                print 14 * ' ', "maximum phi_norm", phi_norm * (max_iter - 1)
+                if phi_norm * (max_iter - i) < self.delta_phi_threshold:
+                    print "|maximum norm of displacement| x iteration < %f pixel or voxel" % (self.delta_phi_threshold)
                     break
 
             forward_mapping = self.zoom_mapping(self.deformation.get_forward_mapping(), resolution)
@@ -319,10 +293,10 @@ def main():
                         default=1.,
                         type=float,
                         help='penalty coefficient for norm of vector\nDefault: 1.')
-    parser.add_argument('--energy_threshold',
-                        default=0.0001,
+    parser.add_argument('--delta_phi_threshold',
+                        default=1.,
                         type=float,
-                        help='threshold value of update ratio of cost function\nDefault: 0.0001')
+                        help='threshold value for maximum update of displacement\nDefault: 1')
     parser.add_argument('--unit_threshold',
                         default=0.2,
                         type=float,
