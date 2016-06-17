@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.signal import convolve
 from scipy.ndimage.filters import correlate
 from scipy.ndimage.interpolation import map_coordinates
+from joblib import Parallel, delayed
 from math import pi
 try:
     from pyfftw.interfaces.scipy_fftpack import fftn, ifftn
@@ -349,9 +350,6 @@ class DiffeormorphicDeformation(object):
         self.forward_mappings = np.ones((self.deformation_step + 1, self.ndim) + self.shape) * self.identity_mapping
         self.backward_mappings = np.copy(self.forward_mappings)
 
-        # self.forward_jacobian_matrixs = np.ones((self.deformation_step + 1, self.ndim, self.ndim) + self.shape) * jacobian_matrix(self.identity_mapping)
-        # self.backward_jacobian_matrixs = np.copy(self.forward_jacobian_matrixs)
-
         self.forward_jacobian_determinants = np.ones((self.deformation_step + 1,) + self.shape)
         self.backward_jacobian_determinants = np.copy(self.forward_jacobian_determinants)
 
@@ -404,200 +402,200 @@ class DiffeormorphicDeformation(object):
         elif ndim == 3:
             return np.mgrid[:shape[0], :shape[1], :shape[2]].astype(np.float)
 
-    def vectorize(self, momentum):
-        """
-        apply vectorizing operator to momentum which induces smoothness
+    # def vectorize(self, momentum):
+    #     """
+    #     apply vectorizing operator to momentum which induces smoothness
 
-        Parameters
-        ----------
-        momentum : ndarray
-            Input momentum field.
-            eg. 3 dimensional case (dimension, len(x), len(y), len(z))
+    #     Parameters
+    #     ----------
+    #     momentum : ndarray
+    #         Input momentum field.
+    #         eg. 3 dimensional case (dimension, len(x), len(y), len(z))
 
-        Returns
-        -------
-        vectorField : ndarray
-            Vectorized momentum field.
-            eg. 3d case (dimension, len(x), len(y), len(z))
+    #     Returns
+    #     -------
+    #     vectorField : ndarray
+    #         Vectorized momentum field.
+    #         eg. 3d case (dimension, len(x), len(y), len(z))
 
-        input
-        vector_field: the vector field to be regularized.
+    #     input
+    #     vector_field: the vector field to be regularized.
 
-        returns
-        f: regularized vector field
+    #     returns
+    #     f: regularized vector field
 
-        operator L = - alpha * laplacian + gamma * Id
-        K = (LL)^{-1}
-        f = Kg
-        or
-        g = (LL)f
-        where f is what we want to calculate
-        Fourier transform
-        G = A^2 * F
-        where
-        A = gamma + 2 * alpha sum^3_{i=1} (1 - cos(2pi*dxi*ki))/dxi^2
-        where
-        ki is frequency and
-        dxi is the discritization of the image domain which will be shape[i]
-        Therefore
+    #     operator L = - alpha * laplacian + gamma * Id
+    #     K = (LL)^{-1}
+    #     f = Kg
+    #     or
+    #     g = (LL)f
+    #     where f is what we want to calculate
+    #     Fourier transform
+    #     G = A^2 * F
+    #     where
+    #     A = gamma + 2 * alpha sum^3_{i=1} (1 - cos(2pi*dxi*ki))/dxi^2
+    #     where
+    #     ki is frequency and
+    #     dxi is the discritization of the image domain which will be shape[i]
+    #     Therefore
 
-        f = inverse of Fourier transform of (G / A^2)
-        """
-        G = np.zeros(momentum.shape, dtype=np.complex128)
-        for i in xrange(self.ndim):
-            try:
-                G[i] = fftn(momentum[i], threads=5)
-            except:
-                G[i] = fftn(momentum[i])
-            # G[i] = fftn(momentum[i])
-            # G[i] = fftn(momentum[i], threads=5)
+    #     f = inverse of Fourier transform of (G / A^2)
+    #     """
+    #     G = np.zeros(momentum.shape, dtype=np.complex128)
+    #     for i in xrange(self.ndim):
+    #         try:
+    #             G[i] = fftn(momentum[i], threads=5)
+    #         except:
+    #             G[i] = fftn(momentum[i])
+    #         # G[i] = fftn(momentum[i])
+    #         # G[i] = fftn(momentum[i], threads=5)
 
-        F = G * self.vectorize_operator
+    #     F = G * self.vectorize_operator
 
-        vector_field = np.zeros_like(momentum)
-        for i in xrange(self.ndim):
-            try:
-                vector_field[i] = np.real(ifftn(F[i], threads=5))
-            except:
-                vector_field[i] = np.real(ifftn(F[i]))
-            # vector_field[i] = np.real(ifftn(F[i]))
-            # vector_field[i] = np.real(ifftn(F[i], threads=5))
+    #     vector_field = np.zeros_like(momentum)
+    #     for i in xrange(self.ndim):
+    #         try:
+    #             vector_field[i] = np.real(ifftn(F[i], threads=5))
+    #         except:
+    #             vector_field[i] = np.real(ifftn(F[i]))
+    #         # vector_field[i] = np.real(ifftn(F[i]))
+    #         # vector_field[i] = np.real(ifftn(F[i], threads=5))
 
-        return vector_field
+    #     return vector_field
 
-    def momentum_ssd(self, fixed, moving, Dphi):
-        return 2 * gradient(moving) * (fixed - moving) * Dphi / self.penalty
+    # def momentum_ssd(self, fixed, moving, Dphi):
+    #     return 2 * gradient(moving) * (fixed - moving) * Dphi / self.penalty
 
-    def momentum_cc(self, J, I, Dphi):
-        """
-        Convolution of vector field with a kernel
-        Parameters
-        ----------
-        J : ndarray
-            Input deformed fixed image.
-            eg. 3 dimensional case (len(x), len(y), len(z))
-        I : ndarray
-            Input deformed moving image.
-        jacobian : ndarray
-            jacobian determinant of backward mapping
-            eg. 3d case (dimension, len(x), len(y), len(z))
-        penalty : double
-            penalty for vector field
-        Returns
-        -------
-        momentum : ndarray
-            momentum field.
-            eg. 3d case (dimension, len(x), len(y), len(z))
-        """
-        Im = uniform_filter(I, self.window_length) / self.window_size
-        Jm = uniform_filter(J, self.window_length) / self.window_size
+    # def momentum_cc(self, J, I, Dphi):
+    #     """
+    #     Convolution of vector field with a kernel
+    #     Parameters
+    #     ----------
+    #     J : ndarray
+    #         Input deformed fixed image.
+    #         eg. 3 dimensional case (len(x), len(y), len(z))
+    #     I : ndarray
+    #         Input deformed moving image.
+    #     jacobian : ndarray
+    #         jacobian determinant of backward mapping
+    #         eg. 3d case (dimension, len(x), len(y), len(z))
+    #     penalty : double
+    #         penalty for vector field
+    #     Returns
+    #     -------
+    #     momentum : ndarray
+    #         momentum field.
+    #         eg. 3d case (dimension, len(x), len(y), len(z))
+    #     """
+    #     Im = uniform_filter(I, self.window_length) / self.window_size
+    #     Jm = uniform_filter(J, self.window_length) / self.window_size
 
-        Ibar = I - Im
-        Jbar = J - Jm
+    #     Ibar = I - Im
+    #     Jbar = J - Jm
 
-        II = uniform_filter(I * I, self.window_length) - self.window_size * Im * Im
-        JJ = uniform_filter(J * J, self.window_length) - self.window_size * Jm * Jm
-        IJ = uniform_filter(I * J, self.window_length) - self.window_size * Im * Jm
+    #     II = uniform_filter(I * I, self.window_length) - self.window_size * Im * Im
+    #     JJ = uniform_filter(J * J, self.window_length) - self.window_size * Jm * Jm
+    #     IJ = uniform_filter(I * J, self.window_length) - self.window_size * Im * Jm
 
-        denom = II * JJ
-        IJoverIIJJ = IJ / denom
-        IJoverII = IJ / II
-        IJoverIIJJ[np.where(denom < 1e-3)] = 0
-        IJoverII[np.where(II < 1e-3)] = 0
+    #     denom = II * JJ
+    #     IJoverIIJJ = IJ / denom
+    #     IJoverII = IJ / II
+    #     IJoverIIJJ[np.where(denom < 1e-3)] = 0
+    #     IJoverII[np.where(II < 1e-3)] = 0
 
-        f = gradient(Ibar) * IJoverIIJJ * (Jbar - Ibar * IJoverII) * Dphi
+    #     f = gradient(Ibar) * IJoverIIJJ * (Jbar - Ibar * IJoverII) * Dphi
 
-        return 2 * f / self.penalty
+    #     return 2 * f / self.penalty
 
-    def momentum_mc(self, J, I, Dphi):
-        """
-        Not-smoothed vector field derived from the current moving image, fixed image, and space
+    # def momentum_mc(self, J, I, Dphi):
+    #     """
+    #     Not-smoothed vector field derived from the current moving image, fixed image, and space
 
-        Parameters
-        ----------
-        J : ndarray
-            Input deformed fixed image.
-            eg. 3 dimensional case (len(x), len(y), len(z))
-        I : ndarray
-            Input deformed moving image.
-        Dphi : ndarray
-            Jacobian determinant of current space
+    #     Parameters
+    #     ----------
+    #     J : ndarray
+    #         Input deformed fixed image.
+    #         eg. 3 dimensional case (len(x), len(y), len(z))
+    #     I : ndarray
+    #         Input deformed moving image.
+    #     Dphi : ndarray
+    #         Jacobian determinant of current space
 
-        Returns
-        -------
-        momentum : ndarray
-            Unsmoothed vector field
-        """
-        assert(I.dtype == np.float)
-        assert(J.dtype == np.float)
-        index = int((self.window_size - 1) / 2)
-        Ai = smm(I, self.mahalanobis_matrix)
-        Aj = smm(J, self.mahalanobis_matrix)
-        Ibar = np.copy(Ai[...,index]).astype(np.float)
-        Jbar = np.copy(Aj[...,index]).astype(np.float)
+    #     Returns
+    #     -------
+    #     momentum : ndarray
+    #         Unsmoothed vector field
+    #     """
+    #     assert(I.dtype == np.float)
+    #     assert(J.dtype == np.float)
+    #     index = int((self.window_size - 1) / 2)
+    #     Ai = smm(I, self.mahalanobis_matrix)
+    #     Aj = smm(J, self.mahalanobis_matrix)
+    #     Ibar = np.copy(Ai[...,index]).astype(np.float)
+    #     Jbar = np.copy(Aj[...,index]).astype(np.float)
 
-        II = np.einsum('...i,...i->...', Ai, Ai)
-        JJ = np.einsum('...i,...i->...', Aj, Aj)
-        IJ = np.einsum('...i,...i->...', Ai, Aj)
-        IIJJ = II * JJ
-        IJoverIIJJ = IJ / IIJJ
-        IJoverII = IJ / II
-        IJoverIIJJ[np.where(IIJJ < 1e-3)] = 0
-        IJoverII[np.where(II < 1e-3)] = 0
-        f = gradient(Ibar) * IJoverIIJJ * (Jbar - Ibar * IJoverII) * Dphi
+    #     II = np.einsum('...i,...i->...', Ai, Ai)
+    #     JJ = np.einsum('...i,...i->...', Aj, Aj)
+    #     IJ = np.einsum('...i,...i->...', Ai, Aj)
+    #     IIJJ = II * JJ
+    #     IJoverIIJJ = IJ / IIJJ
+    #     IJoverII = IJ / II
+    #     IJoverIIJJ[np.where(IIJJ < 1e-3)] = 0
+    #     IJoverII[np.where(II < 1e-3)] = 0
+    #     f = gradient(Ibar) * IJoverIIJJ * (Jbar - Ibar * IJoverII) * Dphi
 
-        return 2 * f / self.penalty
+    #     return 2 * f / self.penalty
 
-    def momentum_mi(self, fixed, moving, Dphi):
-        pass
+    # def momentum_mi(self, fixed, moving, Dphi):
+    #     pass
 
-    def momentum(self, fixed, moving, Dphi):
-        """
-        mere derivation of cost function of similarity term.
-        vectorization process is usually followed after this calculation to smooth vector field
+    # def momentum(self, fixed, moving, Dphi):
+    #     """
+    #     mere derivation of cost function of similarity term.
+    #     vectorization process is usually followed after this calculation to smooth vector field
 
-        Parameters
-        ----------
-        fixed_data : ndarray
-            ndarray data of fixed image
-        moving_data : ndarray
-            ndarray data of moving image
-        Dphi : ndarray
-            jacobian determinant of backward mapping which warped original fixed image to the input fixed_data
+    #     Parameters
+    #     ----------
+    #     fixed_data : ndarray
+    #         ndarray data of fixed image
+    #     moving_data : ndarray
+    #         ndarray data of moving image
+    #     Dphi : ndarray
+    #         jacobian determinant of backward mapping which warped original fixed image to the input fixed_data
 
-        Returns
-        -------
-        momentum : ndarray
-            update of vector field before smoothing
-        """
-        if self.similarity_metric is 'ssd':
-            return self.momentum_ssd(fixed, moving, Dphi)
-        elif self.similarity_metric is 'cc':
-            return self.momentum_cc(fixed, moving, Dphi)
-        elif self.similarity_metric is 'mc':
-            return self.momentum_mc(fixed, moving, Dphi)
-        else:
-            raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
+    #     Returns
+    #     -------
+    #     momentum : ndarray
+    #         update of vector field before smoothing
+    #     """
+    #     if self.similarity_metric is 'ssd':
+    #         return self.momentum_ssd(fixed, moving, Dphi)
+    #     elif self.similarity_metric is 'cc':
+    #         return self.momentum_cc(fixed, moving, Dphi)
+    #     elif self.similarity_metric is 'mc':
+    #         return self.momentum_mc(fixed, moving, Dphi)
+    #     else:
+    #         raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
 
-    def grad_E_similarity(self, fixed_data, moving_data, Dphi):
-        """
-        returns gradient of cost function of similarity term
+    # def grad_E_similarity(self, fixed_data, moving_data, Dphi):
+    #     """
+    #     returns gradient of cost function of similarity term
 
-        Parameters
-        ----------
-        fixed_data : ndarray
-            ndarray data of fixed image
-        moving_data : ndarray
-            ndarray data of moving image
-        Dphi : ndarray
-            jacobian determinant of backward mapping which warped original fixed image to the input fixed_data
+    #     Parameters
+    #     ----------
+    #     fixed_data : ndarray
+    #         ndarray data of fixed image
+    #     moving_data : ndarray
+    #         ndarray data of moving image
+    #     Dphi : ndarray
+    #         jacobian determinant of backward mapping which warped original fixed image to the input fixed_data
 
-        Returns
-        -------
-        gradE : ndarray
-            gradient of cost function of similarity term
-        """
-        return self.vectorize(self.momentum(fixed_data, moving_data, Dphi))
+    #     Returns
+    #     -------
+    #     gradE : ndarray
+    #         gradient of cost function of similarity term
+    #     """
+    #     return self.vectorize(self.momentum(fixed_data, moving_data, Dphi))
 
     def euler_integration(self, mapping, jacobian_matrix, vector_field):
         return mapping - np.einsum('ij...,j...->i...', jacobian_matrix, vector_field) * self.delta_time
@@ -617,6 +615,25 @@ class LDDMM(DiffeormorphicDeformation):
         self.vector_fields = np.zeros((self.deformation_step + 1, self.ndim) + self.shape)
         self.delta_vector_fields = np.copy(self.vector_fields)
 
+    # def update(self, fixed_images, moving_images, learning_rate):
+    #     """
+    #     update deformation using gradient descent method
+
+    #     Parameters
+    #     ----------
+    #     fixed_images : SequentialScalarImages
+    #         deformed fixed images
+    #     moving_images : SequentialScalarImages
+    #         deformed moving images
+    #     """
+    #     for i in xrange(self.deformation_step + 1):
+    #         j = - i - 1
+    #         self.delta_vector_fields[i] = learning_rate * (2 * self.vector_fields[i] + self.grad_E_similarity(fixed_images[j], moving_images[i], self.backward_jacobian_determinants[j]))
+
+    #     self.vector_fields -= self.delta_vector_fields
+
+    #     self.integrate_vector_fields()
+
     def update(self, fixed_images, moving_images, learning_rate):
         """
         update deformation using gradient descent method
@@ -627,10 +644,19 @@ class LDDMM(DiffeormorphicDeformation):
             deformed fixed images
         moving_images : SequentialScalarImages
             deformed moving images
+        learning_rate : float
+            learing rate for updating vector fields
         """
-        for i in xrange(self.deformation_step + 1):
-            j = - i - 1
-            self.delta_vector_fields[i] = learning_rate * (2 * self.vector_fields[i] + self.grad_E_similarity(fixed_images[j], moving_images[i], self.backward_jacobian_determinants[j]))
+        if self.similarity_metric is 'ssd':
+            derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed_images[-i - 1], moving_images[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.deformation_step + 1)))
+        elif self.similarity_metric is 'cc':
+            derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_cc)(fixed_images[-i - 1], moving_images[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.deformation_step + 1)))
+        elif self.similarity_metric is 'mc':
+            derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_mc)(fixed_images[-i - 1], moving_images[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.deformation_step + 1)))
+        else:
+            raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
+
+        self.delta_vector_fields = learning_rate * (self.vector_fields + derivative)
 
         self.vector_fields -= self.delta_vector_fields
 
@@ -692,7 +718,7 @@ class SyN(DiffeormorphicDeformation):
         self.former_delta_vector_fields = np.copy(self.former_vector_fields)
         self.latter_delta_vector_fields = np.copy(self.former_vector_fields)
 
-    def update(self, fixed_images, moving_images, learning_rate):
+    def update_old(self, fixed_images, moving_images, learning_rate):
         """
         update deformation using gradient descent method
 
@@ -707,6 +733,39 @@ class SyN(DiffeormorphicDeformation):
             j = -i - 1
             self.former_delta_vector_fields[i] = learning_rate * (2 * self.former_vector_fields[i] + self.grad_E_similarity(fixed_data=fixed_images[j], moving_data=moving_images[i], Dphi=self.backward_jacobian_determinants[j]))
             self.latter_delta_vector_fields[i] = learning_rate * (2 * self.latter_vector_fields[i] + self.grad_E_similarity(fixed_data=moving_images[j], moving_data=fixed_images[i], Dphi=self.forward_jacobian_determinants[i]))
+
+        self.former_vector_fields -= self.former_delta_vector_fields
+        self.latter_vector_fields -= self.latter_delta_vector_fields
+
+        self.integrate_vector_fields()
+
+    def update(self, fixed_images, moving_images, learning_rate):
+        """
+        update deformation using gradient descent method
+
+        Parameters
+        ----------
+        fixed_images : SequentialScalarImages
+            deformed fixed images
+        moving_images : SequentialScalarImages
+            deformed moving images
+        learning_rate : float
+            learing rate for updating vector fields
+        """
+        if self.similarity_metric is 'ssd':
+            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed_images[-i - 1], moving_images[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.half_deformation_step + 1)))
+            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving_images[-i - 1], fixed_images[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.half_deformation_step + 1)))
+        elif self.similarity_metric is 'cc':
+            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed_images[-i - 1], moving_images[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.half_deformation_step + 1)))
+            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving_images[-i - 1], fixed_images[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.half_deformation_step + 1)))
+        elif self.similarity_metric is 'mc':
+            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed_images[-i - 1], moving_images[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.half_deformation_step + 1)))
+            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving_images[-i - 1], fixed_images[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.half_deformation_step + 1)))
+        else:
+            raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
+
+        self.former_delta_vector_fields = learning_rate * (self.vector_fields + former_derivative)
+        self.latter_delta_vector_fields = learning_rate * (self.vector_fields + latter_derivative)
 
         self.former_vector_fields -= self.former_delta_vector_fields
         self.latter_vector_fields -= self.latter_delta_vector_fields
@@ -862,6 +921,57 @@ def convolve_vector(vector_field, kernel):
 
     return convolved
 
+def vectorize(momentum, operator):
+    """
+    apply vectorizing operator to momentum for smoothing
+
+    Parameters
+    ----------
+    momentum : ndarray
+        Input momentum field.
+        eg. 3 dimensional case (dimension, len(x), len(y), len(z))
+
+    Returns
+    -------
+    vectorField : ndarray
+        Vectorized momentum field.
+        eg. 3d case (dimension, len(x), len(y), len(z))
+
+    operator L = - alpha * laplacian + gamma * Id
+    K = (LL)^{-1}
+    f = Kg
+    or
+    g = (LL)f
+    where f is what we want to calculate
+    Fourier transform
+    G = A^2 * F
+    where
+    A = gamma + 2 * alpha sum^3_{i=1} (1 - cos(2pi*dxi*ki))/dxi^2
+    where
+    ki is frequency and
+    dxi is the discritization of the image domain which will be shape[i]
+    Therefore
+
+    f = inverse of Fourier transform of (G / A^2)
+    """
+    G = np.zeros(momentum.shape, dtype=np.complex128)
+    for i in xrange(len(momentum)):
+        try:
+            G[i] = fftn(momentum[i], threads=5)
+        except:
+            G[i] = fftn(momentum[i])
+
+    F = G * operator
+
+    vector_field = np.zeros_like(momentum)
+    for i in xrange(len(momentum)):
+        try:
+            vector_field[i] = np.real(ifftn(F[i], threads=5))
+        except:
+            vector_field[i] = np.real(ifftn(F[i]))
+
+    return vector_field
+
 def warp_grid(grid, mapping_function, order=3, mode='nearest'):
     """
     warp grid with a mapping function
@@ -892,6 +1002,95 @@ def warp_grid(grid, mapping_function, order=3, mode='nearest'):
         warped_grid[i] = map_coordinates(grid[i], mapping_function, order=order, mode=mode)
 
     return warped_grid
+
+def derivative_ssd(fixed, moving, Dphi, penalty, operator):
+    momentum = 2 * gradient(moving) * (fixed - moving) * Dphi / penalty
+    return vectorize(momentum, operator)
+
+def derivative_cc(J, I, Dphi, penalty, operator, length, size):
+    """
+    Convolution of vector field with a kernel
+    Parameters
+    ----------
+    J : ndarray
+        Input deformed fixed image.
+        eg. 3 dimensional case (len(x), len(y), len(z))
+    I : ndarray
+        Input deformed moving image.
+    Dphi: ndarray
+        Deformed backward grid's jacobian determinant
+    operator: ndarray
+        operator to smooth vector field in Fourier domain
+    length: int
+        length of window
+    size: int
+        size of window
+
+    Returns
+    -------
+    momentum : ndarray
+        momentum field.
+        eg. 3d case (dimension, len(x), len(y), len(z))
+    """
+    Im = uniform_filter(I, length) / size
+    Jm = uniform_filter(J, length) / size
+
+    Ibar = I - Im
+    Jbar = J - Jm
+
+    II = uniform_filter(I * I, length) - size * Im * Im
+    JJ = uniform_filter(J * J, length) - size * Jm * Jm
+    IJ = uniform_filter(I * J, length) - size * Im * Jm
+
+    denom = II * JJ
+    IJoverIIJJ = IJ / denom
+    IJoverII = IJ / II
+    IJoverIIJJ[np.where(denom < 1e-3)] = 0
+    IJoverII[np.where(II < 1e-3)] = 0
+
+    momentum = 2 * gradient(Ibar) * IJoverIIJJ * (Jbar - Ibar * IJoverII) * Dphi / penalty
+
+    return vectorize(momentum, operator)
+
+def derivative_mc(J, I, Dphi, penalty, operator, matrix):
+    """
+    Not-smoothed vector field derived from the current moving image, fixed image, and space
+
+    Parameters
+    ----------
+    J : ndarray
+        Input deformed fixed image.
+        eg. 3 dimensional case (len(x), len(y), len(z))
+    I : ndarray
+        Input deformed moving image.
+    Dphi : ndarray
+        Jacobian determinant of current space
+
+    Returns
+    -------
+    momentum : ndarray
+        Unsmoothed vector field
+    """
+    assert(I.dtype == np.float)
+    assert(J.dtype == np.float)
+    index = int((len(matrix) - 1) / 2)
+    Ai = smm(I, matrix)
+    Aj = smm(J, matrix)
+    Ibar = np.copy(Ai[...,index]).astype(np.float)
+    Jbar = np.copy(Aj[...,index]).astype(np.float)
+
+    II = np.einsum('...i,...i->...', Ai, Ai)
+    JJ = np.einsum('...i,...i->...', Aj, Aj)
+    IJ = np.einsum('...i,...i->...', Ai, Aj)
+    IIJJ = II * JJ
+    IJoverIIJJ = IJ / IIJJ
+    IJoverII = IJ / II
+    IJoverIIJJ[np.where(IIJJ < 1e-3)] = 0
+    IJoverII[np.where(II < 1e-3)] = 0
+
+    momentum = 2 * gradient(Ibar) * IJoverIIJJ * (Jbar - Ibar * IJoverII) * Dphi / penalty
+
+    return vectorize(momentum, operator)
 
 def similarity_energy_ssd(data1, data2):
     return np.sum((data1 - data2) ** 2)

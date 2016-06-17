@@ -4,6 +4,7 @@ from scipy.ndimage.interpolation import zoom
 from scipy.ndimage.filters import gaussian_filter
 import matplotlib.pyplot as plt
 from skimage.transform import warp
+from joblib import Parallel, delayed
 
 class ScalarImage(object):
     "a class containing information of scalar image"
@@ -122,6 +123,9 @@ class SequentialScalarImages(object):
     def __getitem__(self, index):
         return self.sequential_data[index]
 
-    def apply_transforms(self, mappings):
+    def apply_transforms_old(self, mappings):
         for i in xrange(self.deformation_step + 1):
             self.sequential_data[i] = warp(self.sequential_data[0], mappings[i])
+
+    def apply_transforms(self, mappings):
+        self.sequential_data = np.asarray(Parallel(n_jobs=-1, backend='threading')(delayed(warp)(self.sequential_data[0], mappings[i]) for i in range(self.deformation_step + 1)))
