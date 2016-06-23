@@ -5,14 +5,16 @@ from imageprocessing import interpolate_mapping
 
 class Registration(object):
 
-    def __init__(self, delta_phi_threshold=1., unit_threshold=0., learning_rate=0.1):
+    def __init__(self, delta_phi_threshold=1., unit_threshold=0., learning_rate=0.1, parallel=True):
         self.delta_phi_threshold = delta_phi_threshold
         self.unit_threshold = unit_threshold
         self.energy = 0.
         self.learning_rate = learning_rate
+        self.parallel = parallel
         print "threshold value for maximum update of displacement", delta_phi_threshold
         print "threshold value for jacobian determinant of mapping function", unit_threshold
         print "learning rate", learning_rate
+        print "parallel computation", parallel
 
     def set_deformation(self, deformation):
         self.deformation = deformation
@@ -121,21 +123,28 @@ class Registration(object):
             print "iteration   0, Energy %f" % (self.deformation.get_energy(deformed_fixed_images[0], deformed_moving_images[-1]))
 
             for i in xrange(max_iter):
-                self.deformation.update(deformed_fixed_images, deformed_moving_images, self.learning_rate)
+                if self.parallel:
+                    self.deformation.update_parallel(deformed_fixed_images, deformed_moving_images, self.learning_rate)
+                else:
+                    self.deformation.update(deformed_fixed_images, deformed_moving_images, self.learning_rate)
 
                 if not self.check_one_to_one():
                     break
 
-                deformed_moving_images.apply_transforms(self.deformation.forward_mappings)
-                deformed_fixed_images.apply_transforms(self.deformation.backward_mappings)
+                if self.parallel:
+                    deformed_moving_images.apply_transforms_parallel(self.deformation.forward_mappings)
+                    deformed_fixed_images.apply_transforms_parallel(self.deformation.backward_mappings)
+                else:
+                    deformed_moving_images.apply_transforms(self.deformation.forward_mappings)
+                    deformed_fixed_images.apply_transforms(self.deformation.backward_mappings)
 
                 print "iteration%4d, Energy %f" % (i + 1, self.deformation.get_energy(deformed_fixed_images[0], deformed_moving_images[-1]))
                 phi_norm = self.deformation.delta_phi_norm
                 print 14 * ' ', "minimum unit", self.min_unit
                 print 14 * ' ', "phi_norm", phi_norm
                 print 14 * ' ', "maximum phi_norm", phi_norm * (max_iter - i)
-                if phi_norm * (max_iter - i) < self.delta_phi_threshold:
-                    print "|maximum norm of displacement| x iteration < %f voxel" % (self.delta_phi_threshold)
+                if phi_norm * (max_iter - i) < self.delta_phi_threshold / resolution:
+                    print "|maximum norm of displacement| x iteration < %f voxel" % (self.delta_phi_threshold / resolution)
                     break
 
             mapping = self.zoom_mapping(self.deformation.get_forward_mapping(), resolution)
@@ -168,21 +177,28 @@ class Registration(object):
             print "iteration   0, Energy %f" % (self.deformation.get_energy(moving_img.data, fixed_img.data))
 
             for i in xrange(max_iter):
-                self.deformation.update(deformed_fixed_images, deformed_moving_images, self.learning_rate)
+                if self.parallel:
+                    self.deformation.update_parallel(deformed_fixed_images, deformed_moving_images, self.learning_rate)
+                else:
+                    self.deformation.update(deformed_fixed_images, deformed_moving_images, self.learning_rate)
 
                 if not self.check_one_to_one():
                     break
 
-                deformed_moving_images.apply_transforms(self.deformation.forward_mappings)
-                deformed_fixed_images.apply_transforms(self.deformation.backward_mappings)
+                if self.parallel:
+                    deformed_moving_images.apply_transforms(self.deformation.forward_mappings)
+                    deformed_fixed_images.apply_transforms(self.deformation.backward_mappings)
+                else:
+                    deformed_moving_images.apply_transforms_parallel(self.deformation.forward_mappings)
+                    deformed_fixed_images.apply_transforms_parallel(self.deformation.backward_mappings)
 
                 print "iteration%4d, Energy %f" % (i + 1, self.deformation.get_energy(deformed_fixed_images[0], deformed_moving_images[-1]))
                 phi_norm = self.deformation.delta_phi_norm
                 print 14 * ' ', "minimum unit", self.min_unit
                 print 14 * ' ', "phi_norm", phi_norm
                 print 14 * ' ', "maximum phi_norm", phi_norm * (max_iter - 1)
-                if phi_norm * (max_iter - i) < self.delta_phi_threshold:
-                    print "|maximum norm of displacement| x iteration < %f pixel or voxel" % (self.delta_phi_threshold)
+                if phi_norm * (max_iter - i) < self.delta_phi_threshold / resolution:
+                    print "|maximum norm of displacement| x iteration < %f pixel or voxel" % (self.delta_phi_threshold / resolution)
                     break
 
             forward_mapping = self.zoom_mapping(self.deformation.get_forward_mapping(), resolution)
@@ -203,6 +219,8 @@ class Registration(object):
         return forward_transform, backward_transform
 
 def estimate_transform_LDDMM(args):
+    print "fixed image", args.fixed
+    print "moving image", args.moving
     fixed_img = ScalarImage(args.fixed)
     moving_img = ScalarImage(args.moving)
 
@@ -210,9 +228,10 @@ def estimate_transform_LDDMM(args):
     deformation.set_prior_parameter(alpha=args.alpha, gamma=args.gamma, beta=args.beta)
     deformation.set_similarity_metric(args.similarity_metric, args.window_length)
 
-    reg = Registration(energy_threshold=args.energy_threshold,
+    reg = Registration(delta_phi_threshold=args.delta_phi_threshold,
                        unit_threshold=args.unit_threshold,
-                       learning_rate=args.learning_rate)
+                       learning_rate=args.learning_rate,
+                       parallel=args.parallel)
     reg.set_deformation(deformation=deformation)
     reg.set_maximum_iterations(maximum_iterations=args.maximum_iterations)
     reg.set_resolution_level(resolution_level=args.resolution_level)
@@ -224,6 +243,8 @@ def estimate_transform_LDDMM(args):
     transform.save(filename=args.output, affine=fixed_img.get_affine())
 
 def estimate_transform_SyN(args):
+    print "fixed image", args.fixed
+    print "moving image", args.moving
     fixed_img = ScalarImage(args.fixed)
     moving_img = ScalarImage(args.moving)
 
@@ -231,9 +252,10 @@ def estimate_transform_SyN(args):
     deformation.set_prior_parameter(alpha=args.alpha, gamma=args.gamma, beta=args.beta)
     deformation.set_similarity_metric(args.similarity_metric, args.window_length)
 
-    reg = Registration(energy_threshold=args.energy_threshold,
+    reg = Registration(delta_phi_threshold=args.delta_phi_threshold,
                        unit_threshold=args.unit_threshold,
-                       learning_rate=args.learning_rate)
+                       learning_rate=args.learning_rate,
+                       parallel=args.parallel)
     reg.set_deformation(deformation=deformation)
     reg.set_maximum_iterations(maximum_iterations=args.maximum_iterations)
     reg.set_resolution_level(resolution_level=args.resolution_level)
@@ -255,6 +277,7 @@ def main():
                         type=str,
                         help='fixed image file')
     parser.add_argument('-s', '--similarity_metric',
+                        type=str,
                         choices=['cc', 'ssd', 'mc'],
                         default='cc',
                         help='similarity metric to evaluate how similar two images are.\nChoose one of the following similarity metric\n    cc: zero means normalized Cross Correlation\n    ssd: Sum of Squared Difference\n    mc: mahalanobis cosine similarity\nDefault: cc')
@@ -321,6 +344,20 @@ def main():
                         nargs='*',
                         action='store',
                         help='values of smoothing sigma at each level\nDefault: [2, 1, 1](cc), [2, 1, 0](ssd)')
+    parser.add_argument('--parallel',
+                        dest='parallel',
+                        action='store_true')
+    parser.add_argument('--no-parallel',
+                        dest='parallel',
+                        action='store_false')
+    parser.add_argument('--gpu',
+                        dest='gpu',
+                        action='store_true')
+    parser.add_argument('--no_gpu',
+                        dest='gpu',
+                        action='store_false')
+    parser.set_defaults(parallel=True)
+    parser.set_defaults(gpu=True)
 
     args = parser.parse_args()
 
@@ -340,6 +377,13 @@ def main():
             args.learning_rate = 0.1
         if args.smoothing_sigma is None:
             args.smoothing_sigma = [2, 1, 0]
+    elif args.similarity_metric == 'mc':
+        if args.penalty is None:
+            args.penalty = 0.0001
+        if args.learning_rate is None:
+            args.learning_rate = 0.01
+        if args.smoothing_sigma is None:
+            args.smoothing_sigma = [2, 1, 1]
 
     if args.transformation == 'LDDMM':
         estimate_transform_LDDMM(args)
