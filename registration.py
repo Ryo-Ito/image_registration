@@ -350,14 +350,7 @@ def main():
     parser.add_argument('--no-parallel',
                         dest='parallel',
                         action='store_false')
-    parser.add_argument('--gpu',
-                        dest='gpu',
-                        action='store_true')
-    parser.add_argument('--no_gpu',
-                        dest='gpu',
-                        action='store_false')
     parser.set_defaults(parallel=True)
-    parser.set_defaults(gpu=True)
 
     args = parser.parse_args()
 
