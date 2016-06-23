@@ -15,7 +15,6 @@ from imageprocessing import gradient, uniform_filter
 try:
     from gpgpu import sliding_matrix_multiply as smm
 except:
-    print "sliding matrix multiplication will be calculated using cython function"
     from imageprocessing import sliding_matrix_product as smm
 
 np.seterr(all='ignore')
@@ -379,6 +378,7 @@ class DiffeormorphicDeformation(object):
             self.window_size = self.window_length ** self.ndim
 
         if self.similarity_metric == 'mc':
+
             try:
                 self.mahalanobis_matrix = args[0]
                 self.window_size = len(self.mahalanobis_matrix)
@@ -631,11 +631,13 @@ class LDDMM(DiffeormorphicDeformation):
                 j = - i - 1
                 self.delta_vector_fields[i] = learning_rate * (2 * self.vector_fields[i] + derivative_ssd(fixed[j], moving[i], self.backward_jacobian_determinants[j], self.penalty, self.vectorize_operator))
         elif self.similarity_metric == 'cc':
-            j = - i - 1
-            self.delta_vector_fields[i] = learning_rate * (2 * self.vector_fields[i] + derivative_cc(fixed[j], moving[i], self.backward_jacobian_determinants[j], self.penalty, self.vectorize_operator, self.window_length, self.window_size))
+            for i in xrange(self.deformation_step + 1):
+                j = - i - 1
+                self.delta_vector_fields[i] = learning_rate * (2 * self.vector_fields[i] + derivative_cc(fixed[j], moving[i], self.backward_jacobian_determinants[j], self.penalty, self.vectorize_operator, self.window_length, self.window_size))
         elif self.similarity_metric == 'mc':
-            j = - i - 1
-            self.delta_vector_fields[i] = learning_rate * (2 * self.vector_fields[i] + derivative_mc(fixed[j], moving[i], self.backward_jacobian_determinants[j], self.penalty, self.vectorize_operator, self.mahalanobis_matrix))
+            for i in xrange(self.deformation_step + 1):
+                j = - i - 1
+                self.delta_vector_fields[i] = learning_rate * (2 * self.vector_fields[i] + derivative_mc(fixed[j], moving[i], self.backward_jacobian_determinants[j], self.penalty, self.vectorize_operator, self.mahalanobis_matrix))
         else:
             raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
 
@@ -727,49 +729,62 @@ class SyN(DiffeormorphicDeformation):
         self.former_delta_vector_fields = np.copy(self.former_vector_fields)
         self.latter_delta_vector_fields = np.copy(self.former_vector_fields)
 
-    def update(self, fixed_images, moving_images, learning_rate):
+    def update(self, fixed, moving, learning_rate):
         """
         update deformation using gradient descent method
 
         Parameters
         ----------
-        fixed_images : SequentialScalarImages
+        fixed : SequentialScalarImages
             deformed fixed images
-        moving_images : SequentialScalarImages
+        moving : SequentialScalarImages
             deformed moving images
         """
-        for i in xrange(self.half_deformation_step + 1):
-            j = -i - 1
-            self.former_delta_vector_fields[i] = learning_rate * (2 * self.former_vector_fields[i] + self.grad_E_similarity(fixed_data=fixed_images[j], moving_data=moving_images[i], Dphi=self.backward_jacobian_determinants[j]))
-            self.latter_delta_vector_fields[i] = learning_rate * (2 * self.latter_vector_fields[i] + self.grad_E_similarity(fixed_data=moving_images[j], moving_data=fixed_images[i], Dphi=self.forward_jacobian_determinants[i]))
+        if self.similarity_metric == 'ssd':
+            for i in xrange(self.half_deformation_step + 1):
+                j = - i - 1
+                self.former_delta_vector_fields[i] = learning_rate * (2 * self.vector_fields[i] + derivative_ssd(fixed[j], moving[i], self.backward_jacobian_determinants[j], self.penalty, self.vectorize_operator))
+                self.latter_delta_vector_fields[i] = learning_rate * (2 * self.latter_vector_fields[i] + derivative_ssd(moving[j], fixed[i], self.forward_jacobian_determinants[i], self.penalty, self.vectorize_operator))
+        elif self.similarity_metric == 'cc':
+            for i in xrange(self.half_deformation_step + 1):
+                j = - i - 1
+                self.former_delta_vector_fields[i] = learning_rate * (2 * self.vector_fields[i] + derivative_ssd(fixed[j], moving[i], self.backward_jacobian_determinants[j], self.penalty, self.vectorize_operator, self.window_length, self.window_size))
+                self.latter_delta_vector_fields[i] = learning_rate * (2 * self.latter_vector_fields[i] + derivative_ssd(moving[j], fixed[i], self.forward_jacobian_determinants[i], self.penalty, self.vectorize_operator, self.window_length, self.window_size))
+        elif self.similarity_metric == 'mc':
+            for i in xrange(self.half_deformation_step + 1):
+                j = - i - 1
+                self.former_delta_vector_fields[i] = learning_rate * (2 * self.vector_fields[i] + derivative_ssd(fixed[j], moving[i], self.backward_jacobian_determinants[j], self.penalty, self.vectorize_operator, self.mahalanobis_matrix))
+                self.latter_delta_vector_fields[i] = learning_rate * (2 * self.latter_vector_fields[i] + derivative_ssd(moving[j], fixed[i], self.forward_jacobian_determinants[i], self.penalty, self.vectorize_operator, self.mahalanobis_matrix))
+        else:
+            raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
 
         self.former_vector_fields -= self.former_delta_vector_fields
         self.latter_vector_fields -= self.latter_delta_vector_fields
 
         self.integrate_vector_fields()
 
-    def update_parallel(self, fixed_images, moving_images, learning_rate):
+    def update_parallel(self, fixed, moving, learning_rate):
         """
         update deformation using gradient descent method
 
         Parameters
         ----------
-        fixed_images : SequentialScalarImages
+        fixed : SequentialScalarImages
             deformed fixed images
-        moving_images : SequentialScalarImages
+        moving : SequentialScalarImages
             deformed moving images
         learning_rate : float
             learing rate for updating vector fields
         """
         if self.similarity_metric is 'ssd':
-            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed_images[-i - 1], moving_images[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.half_deformation_step + 1)))
-            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving_images[-i - 1], fixed_images[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.half_deformation_step + 1)))
+            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.half_deformation_step + 1)))
+            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving[-i - 1], fixed[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.half_deformation_step + 1)))
         elif self.similarity_metric is 'cc':
-            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed_images[-i - 1], moving_images[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.half_deformation_step + 1)))
-            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving_images[-i - 1], fixed_images[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.half_deformation_step + 1)))
+            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.half_deformation_step + 1)))
+            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving[-i - 1], fixed[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.half_deformation_step + 1)))
         elif self.similarity_metric is 'mc':
-            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed_images[-i - 1], moving_images[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.half_deformation_step + 1)))
-            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving_images[-i - 1], fixed_images[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.half_deformation_step + 1)))
+            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.half_deformation_step + 1)))
+            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving[-i - 1], fixed[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.half_deformation_step + 1)))
         else:
             raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
 
