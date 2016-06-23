@@ -61,6 +61,8 @@ target/
 #Ipython Notebook
 .ipynb_checkpoints
 
+.DS_Store
+
 LDDMM.py
 SyN.py
 imageprocessing.c
