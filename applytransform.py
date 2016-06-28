@@ -32,7 +32,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='applying transformation to an input image')
-    parser.add_argument('--input', '-i', type=str, help='fixed image file')
+    parser.add_argument('--input', '-i', type=str, help='moving image file')
     parser.add_argument('--transformation', '-t', type=str, help='transformation file')
     parser.add_argument('--output', '-o', type=str, help='output file without extension')
 
