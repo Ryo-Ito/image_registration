@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from skimage.transform import warp
 from joblib import Parallel, delayed
 
+
 class ScalarImage(object):
     "a class containing information of scalar image"
 
@@ -79,9 +80,9 @@ class ScalarImage(object):
         elif self.ndim == 3:
             shape = np.array(self.shape)
             center = (shape / 2).astype(np.int)
-            plt.imshow(self.data[:,:,center[2]], cmap='gray')
-            plt.imshow(self.data[:,center[1],:], cmap='gray')
-            plt.imshow(self.data[center[0],:,:], cmap='gray')
+            plt.imshow(self.data[:, :, center[2]], cmap='gray')
+            plt.imshow(self.data[:, center[1], :], cmap='gray')
+            plt.imshow(self.data[center[0], :, :], cmap='gray')
             plt.show()
 
     def apply_transform(self, transformation, order=1):

@@ -12,10 +12,11 @@ try:
 except ImportError:
     from scipy.fftpack import fftn, ifftn
 from imageprocessing import gradient, uniform_filter
-try:
-    from gpgpu import sliding_matrix_multiply as smm
-except:
-    from imageprocessing import sliding_matrix_product as smm
+# try:
+#     from gpgpu import sliding_matrix_multiply as smm
+# except:
+#     from imageprocessing import sliding_matrix_product as smm
+from imageprocessing import sliding_matrix_product as smm
 
 np.seterr(all='ignore')
 
