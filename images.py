@@ -128,5 +128,5 @@ class SequentialScalarImages(object):
         for i in xrange(self.deformation_step + 1):
             self.sequential_data[i] = warp(self.sequential_data[0], mappings[i])
 
-    def apply_transforms_parallel(self, mappings):
-        self.sequential_data = np.asarray(Parallel(n_jobs=-1, backend='threading')(delayed(warp)(self.sequential_data[0], mappings[i]) for i in range(self.deformation_step + 1)))
+    def apply_transforms_parallel(self, mappings, n_jobs=-1):
+        self.sequential_data = np.asarray(Parallel(n_jobs=n_jobs, backend='threading')(delayed(warp)(self.sequential_data[0], mappings[i]) for i in range(self.deformation_step + 1)))

@@ -646,7 +646,7 @@ class LDDMM(DiffeormorphicDeformation):
 
         self.integrate_vector_fields()
 
-    def update_parallel(self, fixed, moving, learning_rate):
+    def update_parallel(self, fixed, moving, learning_rate, n_jobs=-1):
         """
         update deformation using gradient descent method
 
@@ -660,11 +660,11 @@ class LDDMM(DiffeormorphicDeformation):
             learing rate for updating vector fields
         """
         if self.similarity_metric == 'ssd':
-            derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.deformation_step + 1)))
+            derivative = np.asarray(Parallel(n_jobs=n_jobs)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.deformation_step + 1)))
         elif self.similarity_metric == 'cc':
-            derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_cc)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.deformation_step + 1)))
+            derivative = np.asarray(Parallel(n_jobs=n_jobs)(delayed(derivative_cc)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.deformation_step + 1)))
         elif self.similarity_metric == 'mc':
-            derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_mc)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.deformation_step + 1)))
+            derivative = np.asarray(Parallel(n_jobs=n_jobs)(delayed(derivative_mc)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.deformation_step + 1)))
         else:
             raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
 
@@ -764,7 +764,7 @@ class SyN(DiffeormorphicDeformation):
 
         self.integrate_vector_fields()
 
-    def update_parallel(self, fixed, moving, learning_rate):
+    def update_parallel(self, fixed, moving, learning_rate, n_jobs=-1):
         """
         update deformation using gradient descent method
 
@@ -778,14 +778,14 @@ class SyN(DiffeormorphicDeformation):
             learing rate for updating vector fields
         """
         if self.similarity_metric is 'ssd':
-            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.half_deformation_step + 1)))
-            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving[-i - 1], fixed[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.half_deformation_step + 1)))
+            former_derivative = np.asarray(Parallel(n_jobs=n_jobs)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.half_deformation_step + 1)))
+            latter_derivative = np.asarray(Parallel(n_jobs=n_jobs)(delayed(derivative_ssd)(moving[-i - 1], fixed[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator) for i in range(self.half_deformation_step + 1)))
         elif self.similarity_metric is 'cc':
-            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.half_deformation_step + 1)))
-            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving[-i - 1], fixed[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.half_deformation_step + 1)))
+            former_derivative = np.asarray(Parallel(n_jobs=n_jobs)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.half_deformation_step + 1)))
+            latter_derivative = np.asarray(Parallel(n_jobs=n_jobs)(delayed(derivative_ssd)(moving[-i - 1], fixed[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.window_length, self.window_size) for i in range(self.half_deformation_step + 1)))
         elif self.similarity_metric is 'mc':
-            former_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.half_deformation_step + 1)))
-            latter_derivative = np.asarray(Parallel(n_jobs=-1)(delayed(derivative_ssd)(moving[-i - 1], fixed[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.half_deformation_step + 1)))
+            former_derivative = np.asarray(Parallel(n_jobs=n_jobs)(delayed(derivative_ssd)(fixed[-i - 1], moving[i], self.backward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.half_deformation_step + 1)))
+            latter_derivative = np.asarray(Parallel(n_jobs=n_jobs)(delayed(derivative_ssd)(moving[-i - 1], fixed[i], self.forward_jacobian_determinants[-i - 1], self.penalty, self.vectorize_operator, self.mahalanobis_matrix) for i in range(self.half_deformation_step + 1)))
         else:
             raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
 
