@@ -5,16 +5,20 @@ from imageprocessing import interpolate_mapping
 
 class Registration(object):
 
-    def __init__(self, delta_phi_threshold=1., unit_threshold=0., learning_rate=0.1, parallel=True):
+    def __init__(self, delta_phi_threshold=1., unit_threshold=0., learning_rate=0.1, parallel=True, n_jobs=-1):
         self.delta_phi_threshold = delta_phi_threshold
         self.unit_threshold = unit_threshold
         self.energy = 0.
         self.learning_rate = learning_rate
         self.parallel = parallel
+        if not parallel:
+            n_jobs = 1
+        self.n_jobs = n_jobs
         print "threshold value for maximum update of displacement", delta_phi_threshold
         print "threshold value for jacobian determinant of mapping function", unit_threshold
         print "learning rate", learning_rate
         print "parallel computation", parallel
+        print "number of cpu cores to use", n_jobs
 
     def set_deformation(self, deformation):
         self.deformation = deformation
@@ -124,7 +128,7 @@ class Registration(object):
 
             for i in xrange(max_iter):
                 if self.parallel:
-                    self.deformation.update_parallel(deformed_fixed_images, deformed_moving_images, self.learning_rate)
+                    self.deformation.update_parallel(deformed_fixed_images, deformed_moving_images, self.learning_rate, self.n_jobs)
                 else:
                     self.deformation.update(deformed_fixed_images, deformed_moving_images, self.learning_rate)
 
@@ -132,8 +136,8 @@ class Registration(object):
                     break
 
                 if self.parallel:
-                    deformed_moving_images.apply_transforms_parallel(self.deformation.forward_mappings)
-                    deformed_fixed_images.apply_transforms_parallel(self.deformation.backward_mappings)
+                    deformed_moving_images.apply_transforms_parallel(self.deformation.forward_mappings, self.n_jobs)
+                    deformed_fixed_images.apply_transforms_parallel(self.deformation.backward_mappings, self.n_jobs)
                 else:
                     deformed_moving_images.apply_transforms(self.deformation.forward_mappings)
                     deformed_fixed_images.apply_transforms(self.deformation.backward_mappings)
@@ -178,7 +182,7 @@ class Registration(object):
 
             for i in xrange(max_iter):
                 if self.parallel:
-                    self.deformation.update_parallel(deformed_fixed_images, deformed_moving_images, self.learning_rate)
+                    self.deformation.update_parallel(deformed_fixed_images, deformed_moving_images, self.learning_rate, self.n_jobs)
                 else:
                     self.deformation.update(deformed_fixed_images, deformed_moving_images, self.learning_rate)
 
@@ -186,8 +190,8 @@ class Registration(object):
                     break
 
                 if self.parallel:
-                    deformed_moving_images.apply_transforms(self.deformation.forward_mappings)
-                    deformed_fixed_images.apply_transforms(self.deformation.backward_mappings)
+                    deformed_moving_images.apply_transforms(self.deformation.forward_mappings, self.n_jobs)
+                    deformed_fixed_images.apply_transforms(self.deformation.backward_mappings, self.n_jobs)
                 else:
                     deformed_moving_images.apply_transforms_parallel(self.deformation.forward_mappings)
                     deformed_fixed_images.apply_transforms_parallel(self.deformation.backward_mappings)
