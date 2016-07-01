@@ -10,6 +10,7 @@ from math import pi
 try:
     from pyfftw.interfaces.scipy_fftpack import fftn, ifftn
 except ImportError:
+    print "no pyfftw package, going to calculate fft using scipy"
     from scipy.fftpack import fftn, ifftn
 from imageprocessing import gradient, uniform_filter
 # try:
