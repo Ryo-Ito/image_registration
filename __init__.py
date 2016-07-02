@@ -1,1 +1,1 @@
-from . import applytransform, images, deformations, registration
+from . import applytransform, image, deformations, registration

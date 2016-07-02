@@ -1,5 +1,5 @@
 import numpy as np
-from images import ScalarImage, SequentialScalarImages
+from image import ScalarImage, SequentialScalarImages
 from deformations import Transformation, LDDMM, SyN
 from imageprocessing import interpolate_mapping
 
