@@ -61,7 +61,5 @@ target/
 #Ipython Notebook
 .ipynb_checkpoints
 
-LDDMM.py
-SyN.py
 imageprocessing.c
 test.py
