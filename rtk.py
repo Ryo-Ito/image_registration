@@ -1,6 +1,7 @@
 import numpy as np
 import nibabel as nib
 
+
 def pngtonifti(pngfile, savefile):
     """
     save png image file as nifti file
@@ -17,6 +18,7 @@ def pngtonifti(pngfile, savefile):
 
     nib.save(nib.Nifti1Image(img_data, np.identity(4)), savefile)
 
+
 def brain_extraction(file):
     from dipy.segment.mask import median_otsu
     from os.path import splitext
@@ -30,3 +32,12 @@ def brain_extraction(file):
 
     nib.save(mask_img, root + '_binary_mask.nii')
     nib.save(masked_img, root + '_masked.nii')
+
+
+def identity_mapping(shape):
+    ndim = len(shape)
+
+    if ndim == 2:
+        return np.mgrid[:shape[0], :shape[1]].astype(np.float)
+    elif ndim == 3:
+        return np.mgrid[:shape[0], :shape[1], :shape[2]].astype(np.float)

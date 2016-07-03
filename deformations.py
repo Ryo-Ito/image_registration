@@ -10,7 +10,7 @@ from math import pi
 try:
     from pyfftw.interfaces.scipy_fftpack import fftn, ifftn
 except ImportError:
-    print "no pyfftw package, going to calculate fft using scipy"
+    print "no pyfftw package, going to use fft from scipy"
     from scipy.fftpack import fftn, ifftn
 from imageprocessing import gradient, uniform_filter
 # try:
@@ -87,10 +87,6 @@ class Transformation(object):
         mapping : ndarray
             new mapping function added
         """
-        # for i in xrange(self.ndim):
-        #     # order of spline interpolation is 3
-        #     # points outside the boundary are filled by nearest mode
-        #     self.mapping[i] = map_coordinates(self.mapping[i], mapping, mode='nearest')
         self.mapping = warp_grid(self.mapping, mapping)
         self.displacement = self.mapping - self.identity_mapping
 
