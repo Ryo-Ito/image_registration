@@ -1,3 +1,4 @@
+import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 from joblib import Parallel, delayed
 
@@ -23,7 +24,7 @@ class GaussianRegularizer(object):
             return vector_field
         else:
             return np.asarray(
-                Parallel(n_jobs=n_jobs, 'threading')(
+                Parallel(n_jobs, 'threading')(
                     delayed(gaussian_filter)(
                         flow,
                         self.sigma,
@@ -31,3 +32,8 @@ class GaussianRegularizer(object):
                         cval=self.cval,
                         truncate=self.truncate)
                     for flow in momentum))
+
+if __name__ == '__main__':
+    r = GaussianRegularizer()
+    print r
+    print r.__class__.__name__

@@ -15,9 +15,9 @@ class BiharmonicRegularizer(object):
         self.convexity_penalty = convexity_penalty
         self.norm_penalty = norm_penalty
 
-        self.__set_operator()
+        self.set_operator()
 
-    def __set_operator(self):
+    def set_operator(self):
         dx_sqinv = 1.
 
         A = self.norm_penalty * np.ones(self.shape)
