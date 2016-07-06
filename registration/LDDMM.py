@@ -1,5 +1,4 @@
 import numpy as np
-from joblib import Parallel, delayed
 from registration import Registration
 from rtk.deformation import Deformation, VectorFields
 from rtk.image import SequentialScalarImages
@@ -16,7 +15,7 @@ class LDDMM(Registration):
             momentum = (self.derivative(fixed[j], moving[i])
                         * self.deformation.backward_jacobian_determinants[j]
                         / self.penalty)
-            grad = 2 * self.vector_fields[i] * self.regularizer(momentum)
+            grad = 2 * self.vector_fields[i] + self.regularizer(momentum)
             delta = self.learning_rate * grad
             self.vector_fields.delta_vector_fields[i] = delta
 
@@ -40,7 +39,7 @@ class LDDMM(Registration):
         if self.min_unit < self.unit_threshold:
             self.vector_fields.back_to_previous()
             self.integrate_vector_fields()
-            print "reached limit of jacobian determinant %f" % unit_threshold
+            print "reached limit of jacobian determinant %f" % self.unit_threshold
         return self.min_unit > self.unit_threshold
 
     def execute(self):
