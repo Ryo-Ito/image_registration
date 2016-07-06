@@ -44,7 +44,7 @@ class DiffeomorphicDeformation(object):
             self.backward_mappings[i + 1] = self.euler_integration(
                 self.backward_mappings[i],
                 backward_jacobian_matrix,
-                vector_fields[-i - 1])
+                -vector_fields[-i - 1])
 
             forward_jacobian_matrix = rtk.jacobian_matrix(
                 self.forward_mappings[i + 1])

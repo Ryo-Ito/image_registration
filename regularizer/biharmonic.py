@@ -1,6 +1,9 @@
+import functools
 import numpy as np
 try:
     from pyfftw.interfaces.scipy_fftpack import fftn, ifftn
+    fftn = functools.partial(fftn, threads=5)
+    ifftn = functools.partial(ifftn, threads=5)
 except ImportError:
     print "no pyfftw package, going to use fft from scipy"
     from scipy.fftpack import fftn, ifftn
@@ -32,19 +35,21 @@ class BiharmonicRegularizer(object):
             and momentum.shape[1:] == self.operator.shape):
             G = np.zeros(momentum.shape, dtype=np.complex128)
             for i in xrange(len(momentum)):
-                try:
-                    G[i] = fftn(momentum[i], threads=5)
-                except:
-                    G[i] = fftn(momentum[i])
+                # try:
+                #     G[i] = fftn(momentum[i], threads=5)
+                # except:
+                #     G[i] = fftn(momentum[i])
+                G[i] = fftn(momentum[i])
 
             F = G * self.operator
 
             vector_field = np.zeros_like(momentum)
             for i in xrange(len(momentum)):
-                try:
-                    vector_field[i] = np.real(ifftn(F[i], threads=5))
-                except:
-                    vector_field[i] = np.real(ifftn(F[i]))
+                # try:
+                #     vector_field[i] = np.real(ifftn(F[i], threads=5))
+                # except:
+                #     vector_field[i] = np.real(ifftn(F[i]))
+                vector_field[i] = np.real(ifftn(F[i]))
 
             return vector_field
         else:

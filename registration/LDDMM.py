@@ -17,8 +17,7 @@ class LDDMM(Registration):
                         / self.penalty)
             grad = 2 * self.vector_fields[i] + self.regularizer(momentum)
             delta = self.learning_rate * grad
-            self.vector_fields.delta_vector_fields[i] = delta
-
+            self.vector_fields.delta_vector_fields[i] = np.copy(delta)
         self.vector_fields.update()
         self.integrate_vector_fields()
 
