@@ -95,3 +95,7 @@ def warp_grid(grid, mapping_function, order=3, mode='nearest'):
             lines, mapping_function, order=order, mode=mode)
 
     return warped_grid
+
+if __name__ == '__main__':
+    # print dir(rtk)
+    print identity_mapping((4,5))

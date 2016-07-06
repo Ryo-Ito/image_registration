@@ -69,6 +69,6 @@ class ScalarImage(Image):
         warped_img : ScalarImage
             the result of the deformation applied to this image.
         """
-        warped_data = warp(self.data, deformation.mapping, order=order)
+        warped_data = warp(self.data, deformation.grid, order=order)
         warped_img = ScalarImage(data=warped_data, affine=self.affine)
         return warped_img

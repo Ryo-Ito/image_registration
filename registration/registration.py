@@ -1,14 +1,17 @@
 import functools
 import numpy as np
-from rtk.regularizer import GaussianRegularizer
+import rtk
+from rtk.deformation import DiffeomorphicDeformation
 
 
 class Registration(object):
 
     def __init__(self,
-                 ndim=3,
-                 regularizer=GaussianRegularizer(),
-                 similarity='zncc',
+                 ndim,
+                 n_step,
+                 penalty,
+                 regularizer,
+                 similarity,
                  window_length=None,
                  metric_matrix=None,
                  n_iters=(50, 20, 10),
@@ -20,6 +23,10 @@ class Registration(object):
                  parallel=False,
                  n_jobs=-1):
         self.ndim = ndim
+        self.n_step = n_step
+        self.penalty = penalty
+        self.deformation = DiffeomorphicDeformation(
+            n_step=n_step)
         self.regularizer = regularizer
 
         self.similarity = similarity
@@ -107,9 +114,31 @@ class Registration(object):
                 window_size=self.window_size)
         elif self.similarity == 'mncc':
             from rtk.similarity.mncc import cost_function_mncc, derivative_mncc
-            self.cost_function = functools.partial(cost_function_mncc,
-                                                   matrix=self.metric_matrix)
-            self.derivative = functools.partial(derivative_mncc,
-                                                matrix=self.metric_matrix)
+            self.cost_function = functools.partial(
+                cost_function_mncc,
+                matrix=self.metric_matrix)
+            self.derivative = functools.partial(
+                derivative_mncc,
+                matrix=self.metric_matrix)
         else:
             raise ValueError
+
+    def set_images(self, fixed, moving):
+        assert fixed.ndim == moving.ndim
+        assert fixed.shape == moving.shape
+
+        self.fixed = fixed.change_scale(255)
+        self.moving = moving.change_scale(255)
+
+        self.ndim = fixed.ndim
+        self.shape = fixed.shape
+
+    def zoom_grid(self, grid, resolution):
+        shape = grid.shape[1:]
+        if resolution != 1:
+            interpolated_grid = np.zeros((self.ndim,) + self.shape)
+            for i in xrange(self.ndim):
+                interpolated_grid[i] = rtk.interpolate_mapping(grid[i], np.array(self.shape, dtype=np.int32)) * (self.shape[i] - 1) / (shape[i] - 1)
+            return interpolated_grid
+        else:
+            return grid

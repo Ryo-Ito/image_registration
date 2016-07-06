@@ -1,5 +1,5 @@
 from image import ScalarImage
-from deformations import Transformation
+from deformation import Deformation
 
 def apply_transform(moving_img_file, transformation_file, output_img_file, fixed_img_file=None):
     """
