@@ -12,7 +12,8 @@ def test():
         ndim=fixed_img.ndim,
         n_step=32,
         penalty=1000,
-        regularizer=rtk.regularizer.BiharmonicRegularizer(convexity_penalty=1., norm_penalty=1.),
+        regularizer=rtk.regularizer.BiharmonicRegularizer(
+            convexity_penalty=1., norm_penalty=1.),
         similarity='ssd',
         n_iters=(50, 20, 10),
         resolutions=(4, 2, 1),
@@ -22,7 +23,7 @@ def test():
         learning_rate=0.1,
         parallel=False)
     reg.set_images(fixed_img, moving_img)
-    reg.execute()
+    reg.execute().show()
 
 if __name__ == '__main__':
     test()

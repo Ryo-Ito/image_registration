@@ -27,13 +27,14 @@ Choose one of the following similarity metric
     ssd: Sum of Squared Difference
     zncc: zero means normalized cross correlation
     mncc: mahalanobis cosine similarity
-Default: cc\n
+Default: zncc\n
                         """)
     parser.add_argument('--window_length',
                         type=int,
+                        default=5,
                         help="""
 length of window when calculating cross correlation
-Default: None(ssd), 5(zncc)\n
+Default: 5\n
                         """)
     parser.add_argument('--metric_matrix',
                         type=str,
@@ -74,6 +75,14 @@ Default: 1.\n
                         help="""
 penalty coefficient for vector field
 Default: 1000(ssd), 0.0001(zncc)\n
+                        """)
+    parser.add_argument('-r', '--regularizer',
+                        choices=['biharmonic', 'gaussian'],
+                        default='biharmonic',
+                        type=str,
+                        help="""
+regularation of vector field
+Default: biharmonic\n
                         """)
     parser.add_argument('--convexity_penalty',
                         default=1.,
@@ -135,19 +144,13 @@ Default: [4, 2, 1]\n
 values of smoothing sigma at each level
 Default: [2, 1, 0](ssd), [2, 1, 1](zncc)\n
                         """)
-    parser.add_argument('--parallel',
-                        dest='parallel',
-                        action='store_true',
+    parser.add_argument('--n_jobs',
+                        type=int,
+                        default=1,
                         help="""
-enable parallel computation\n
+number of cpu cores to use
+Default: 1
                         """)
-    parser.add_argument('--no-parallel',
-                        dest='parallel',
-                        action='store_false',
-                        help="""
-disables parallel computation\n
-                        """)
-    parser.set_defaults(parallel=True)
 
     args = parser.parse_args()
 
@@ -159,8 +162,6 @@ disables parallel computation\n
         if args.smoothing_sigma is None:
             args.smoothing_sigma = [2, 1, 0]
     if args.similarity_metric == 'zncc':
-        if args.window_length is None:
-            args.window_length = 5
         if args.penalty is None:
             args.penalty = 0.0001
         if args.learning_rate is None:
@@ -170,13 +171,43 @@ disables parallel computation\n
     elif args.similarity_metric == 'mncc':
         if args.metric_matrix is None:
             args.similarity_metric == 'zncc'
-            args.window_length = 5
         if args.penalty is None:
             args.penalty = 0.0001
         if args.learning_rate is None:
             args.learning_rate = 0.01
         if args.smoothing_sigma is None:
             args.smoothing_sigma = [2, 1, 1]
+
+    fixed = rtk.image.ScalarImage(filename=args.fixed)
+    moving = rtk.image.ScalarImage(filename=args.moving)
+
+    if args.regularizer == 'biharmonic':
+        regularizer = rtk.regularizer.BiharmonicRegularizer(args.convexity_penalty, args.norm_penalty)
+    elif args.regularizer == 'gaussian':
+        regularizer = rtk.regularizer.GaussianRegularizer()
+
+    if args.transformation == 'LDDMM':
+        import rtk.registration.LDDMM as Registration
+    elif args.transformation == 'SyN':
+        import rtk.registration.SyN as Registration
+
+    reg = Registration(
+        ndim=fixed.ndim,
+        n_step=args.deformation_step,
+        penalty=args.penalty,
+        regularizer=regularizer,
+        similarity=args.similarity_metric,
+        n_iters=args.maximum_iterations,
+        resolutions=args.resolution_level,
+        smoothing_sigmas=args.smoothing_sigma,
+        delta_phi_threshold=args.delta_phi_threshold,
+        unit_threshold=args.unit_threshold,
+        learning_rate=args.learning_rate,
+        parallel=(args.n_jobs != 1),
+        n_jobs=args.n_jobs)
+    reg.set_images(fixed, moving)
+    warp = reg.execute()
+    warp.save(filename=args.output)
 
 if __name__ == '__main__':
     main()

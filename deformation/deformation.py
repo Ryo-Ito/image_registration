@@ -65,6 +65,36 @@ class Deformation(object):
         self.grid = warp_grid(self.grid, deformation.grid)
         return self
 
+    def show(self, interval=1, limit_axis=True, show_axis=False):
+        import matplotlib.pyplot as plt
+        if self.ndim == 2:
+
+            if show_axis is False:
+                plt.axis('off')
+            ax = plt.gca()
+            ax.invert_yaxis()
+            ax.set_aspect('equal')
+
+            for x in xrange(0, self.shape[0], interval):
+                plt.plot(self.grid[1, x, :], self.grid[0, x, :], 'k')
+            for y in xrange(0, self.shape[1], interval):
+                plt.plot(self.grid[1, :, y], self.grid[0, :, y], 'k')
+            plt.show()
+
+    def save(self, filename, affine=np.identity(4)):
+        displacement = self.grid - identity_mapping(self.shape)
+
+        transpose_axis = ()
+        for i in xrange(1, self.ndim + 1):
+            transpose_axis = transpose_axis + (i,)
+        transpose_axis += (0,)
+
+        displacement = np.transpose(displacement, transpose_axis)
+
+        nib.save(nib.Nifti1Image(displacement, affine), filename)
+
+        print "saved transformation: %s" % filename
+
 
 def warp_grid(grid, mapping_function, order=3, mode='nearest'):
     """

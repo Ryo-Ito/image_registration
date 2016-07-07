@@ -62,4 +62,4 @@ target/
 .ipynb_checkpoints
 
 imageprocessing.c
-test.py
+.DS_Store

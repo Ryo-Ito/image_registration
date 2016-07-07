@@ -21,7 +21,7 @@ class Registration(object):
                  unit_threshold=0.1,
                  learning_rate=0.1,
                  parallel=False,
-                 n_jobs=-1):
+                 n_jobs=1):
         self.ndim = ndim
         self.n_step = n_step
         self.penalty = penalty
