@@ -25,7 +25,7 @@ class LDDMM(Registration):
         raise ValueError
 
     def integrate_vector_fields(self):
-        v = self.vector_fields[:-1] + self.vector_fields[1:]
+        v = 0.5 * (self.vector_fields[:-1] + self.vector_fields[1:])
         forward_mapping_before = np.copy(self.deformation.forward_mappings[-1])
         self.deformation.update_mappings(v)
         forward_mapping_after = np.copy(self.deformation.forward_mappings[-1])
