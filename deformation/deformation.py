@@ -95,6 +95,22 @@ class Deformation(object):
 
         print "saved transformation: %s" % filename
 
+    def save_as_img(self, filename, interval, limit_axis=True, show_axis=False):
+        import matplotlib.pyplot as plt
+        if self.ndim == 2:
+            if show_axis is False:
+                plt.axis('off')
+            ax = plt.gca()
+            ax.invert_yaxis()
+            ax.set_aspect('equal')
+
+            for x in xrange(0, self.shape[0], interval):
+                plt.plot(self.grid[1, x, :], self.grid[0, x, :], 'k')
+            for y in xrange(0, self.shape[1], interval):
+                plt.plot(self.grid[1, :, y], self.grid[0, :, y], 'k')
+            plt.savefig(filename)
+            plt.clf()
+
 
 def warp_grid(grid, mapping_function, order=3, mode='nearest'):
     """

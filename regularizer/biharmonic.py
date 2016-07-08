@@ -16,8 +16,8 @@ class BiharmonicRegularizer(object):
         self.convexity_penalty = convexity_penalty
         self.norm_penalty = norm_penalty
 
-    def set_operator(self, shape):
-        dx_sqinv = 1.
+    def set_operator(self, shape, resolution=1):
+        dx_sqinv = 1. / resolution ** 2
 
         A = self.norm_penalty * np.ones(shape)
 
@@ -35,20 +35,12 @@ class BiharmonicRegularizer(object):
             and momentum.shape[1:] == self.operator.shape):
             G = np.zeros(momentum.shape, dtype=np.complex128)
             for i in xrange(len(momentum)):
-                # try:
-                #     G[i] = fftn(momentum[i], threads=5)
-                # except:
-                #     G[i] = fftn(momentum[i])
                 G[i] = fftn(momentum[i])
 
             F = G * self.operator
 
             vector_field = np.zeros_like(momentum)
             for i in xrange(len(momentum)):
-                # try:
-                #     vector_field[i] = np.real(ifftn(F[i], threads=5))
-                # except:
-                #     vector_field[i] = np.real(ifftn(F[i]))
                 vector_field[i] = np.real(ifftn(F[i]))
 
             return vector_field
