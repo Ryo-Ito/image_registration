@@ -1,11 +1,13 @@
 import numpy as np
+from joblib import Parallel, delayed
+from registration import Registration
 from rtk import identity_mapping, jacobian_matrix
 from rtk.deformation import Deformation, VectorFields
 from rtk.image import SequentialScalarImages
 
 
-class SyN(object):
-    
+class SyN(Registration):
+
     def set_vector_fields(self, shape):
         assert self.n_step % 2 == 0
         self.n_step_half = self.n_step / 2
@@ -65,20 +67,54 @@ class SyN(object):
         self.integrate_vector_fields()
 
     def update_parallel(self, fixed, moving):
-        raise ValueError
+        if hasattr(self.regularizer, "set_operator"):
+            self.regularizer.set_operator(shape=fixed.shape)
+        self.forward_vector_fields.delta_vector_fields = np.array(
+            Parallel(self.n_jobs)(
+                delayed(derivative)(
+                    self.derivative,
+                    fixed[-i - 1],
+                    moving[i],
+                    self.deformation.backward_dets[-i - 1],
+                    self.penalty,
+                    self.forward_vector_fields[i],
+                    self.regularizer,
+                    self.learning_rate)
+                for i in xrange(self.n_step_half + 1)
+                )
+            )
+        self.backward_vector_fields.delta_vector_fields = np.array(
+            Parallel(self.n_jobs)(
+                delayed(derivative)(
+                    self.derivative,
+                    moving[-i - 1],
+                    fixed[i],
+                    self.deformation.forward_dets[-i - 1],
+                    self.penalty,
+                    self.backward_vector_fields[i],
+                    self.regularizer,
+                    self.learning_rate)
+                for i in xrange(self.n_step_half + 1)
+                )
+            )
+
+        self.forward_vector_fields.update()
+        self.backward_vector_fields.update()
+
+        self.integrate_vector_fields()
 
     def integrate_vector_fields(self):
         v_forward = 0.5 * (self.forward_vector_fields[:-1] + self.forward_vector_fields[1:])
         v_backward = 0.5 * (self.backward_vector_fields[:-1] + self.backward_vector_fields[1:])
         v = np.vstack((v_forward, -v_backward))
 
-        forward_mapping_before = np.copy(self.deformation.forward_mapping[self.n_step_half])
-        backward_mapping_before = np.copy(self.deformation.backward_mapping[self.n_step_half])
+        forward_mapping_before = np.copy(self.deformation.forward_mappings[self.n_step_half])
+        backward_mapping_before = np.copy(self.deformation.backward_mappings[self.n_step_half])
 
-        self.deformation.update(v)
+        self.deformation.update_mappings(v)
 
-        forward_mapping_after = self.deformation.forward_mapping[self.n_step_half]
-        backward_mapping_after = self.deformation.backward_mapping[self.n_step_half]
+        forward_mapping_after = self.deformation.forward_mappings[self.n_step_half]
+        backward_mapping_after = self.deformation.backward_mappings[self.n_step_half]
 
         delta_phi_forward = np.max(np.abs(forward_mapping_after - forward_mapping_before))
         delta_phi_backward = np.max(np.abs(backward_mapping_after - backward_mapping_before))
@@ -159,3 +195,18 @@ class SyN(object):
                 backward_mapping,
                 forward_mapping_inverse,
                 backward_mapping_inverse)
+
+
+def derivative(func,
+               fixed,
+               moving,
+               Dphi,
+               penalty,
+               vector_field,
+               regularizer,
+               learning_rate):
+    momentum = (func(fixed, moving)
+                * Dphi
+                / penalty)
+    grad = 2 * vector_field + regularizer(momentum)
+    return learning_rate * grad

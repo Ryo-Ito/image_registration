@@ -184,7 +184,3 @@ def derivative(func,
                 / penalty)
     grad = 2 * vector_field + regularizer(momentum)
     return learning_rate * grad
-
-
-if __name__ == '__main__':
-    a = LDDMM(similarity='ssd')
