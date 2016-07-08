@@ -20,14 +20,14 @@ fixed image file\n
     parser.add_argument('-s', '--similarity_metric',
                         type=str,
                         choices=['ssd', 'zncc', 'mncc'],
-                        default='zncc',
+                        default='ssd',
                         help="""
 similarity metric to evaluate how similar two images are.
 Choose one of the following similarity metric
     ssd: Sum of Squared Difference
     zncc: zero means normalized cross correlation
     mncc: mahalanobis cosine similarity
-Default: zncc\n
+Default: ssd\n
                         """)
     parser.add_argument('--window_length',
                         type=int,
