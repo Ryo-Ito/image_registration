@@ -1,7 +1,9 @@
 import numpy as np
-from cythonTool import uniformFilter
+from image import ScalarImage
+from imageprocessing import uniform_filter
 
-def segmentation_dissimilarity(img1, img2, window_length):
+
+def local_label_dissimilarity(img1, img2, window_length):
     """
     calculate patchwise dissimilarity of segmentation labels at every voxel
 
@@ -27,9 +29,18 @@ def segmentation_dissimilarity(img1, img2, window_length):
     label_difference = np.abs(data1 - data2)
     label_difference[np.where(label_difference > 0)] = 1.
 
-    dissimilarity = uniformFilter(label_difference, window_length) / window_size
+    dissimilarity = uniform_filter(label_difference, window_length) / window_size
 
     return dissimilarity
+
+
+def label_dissimilarity(label1, label2):
+    data1 = label1.get_data()
+    data2 = label2.get_data()
+    similarity = (data1 == data2).astype(np.int)
+    difference = 1 - similarity
+    return np.sum(difference)
+
 
 def test():
     from os.path import expanduser, join
@@ -43,11 +54,29 @@ def test():
     fixed_img = ScalarImage(fixed_img_file)
     moving_img = ScalarImage(moving_img_file)
 
-    dissimilarity = segmentation_dissimilarity(fixed_img, moving_img, 5)
+    dissimilarity = local_label_dissimilarity(fixed_img, moving_img, 5)
 
     dissimilarity_img = ScalarImage(data=dissimilarity, affine=fixed_img.get_affine())
 
     dissimilarity_img.save(join(dname, 'LDDMM/dissimilarity.nii.gz'))
 
+
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='calculate dissimilarity',
+        formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('--labels',
+                        type=str,
+                        nargs=2,
+                        action='store',
+                        help='two label images')
+
+    args = parser.parse_args()
+    label1 = ScalarImage(args.labels[0])
+    label2 = ScalarImage(args.labels[1])
+    print label_dissimilarity(label1, label2)
+
 if __name__ == '__main__':
-    test()
+    main()
