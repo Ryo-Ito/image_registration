@@ -142,3 +142,13 @@ class Registration(object):
             return interpolated_grid
         else:
             return grid
+
+    def check_injectivity(self):
+        self.min_unit = np.min(
+            self.deformation.forward_dets[-1])
+        if self.min_unit < self.unit_threshold:
+            self.vector_fields.back_to_previous()
+            self.integrate_vector_fields()
+            print "reached limit of jacobian determinant %f < %f" % (
+                self.min_unit, self.unit_threshold)
+        return self.min_unit > self.unit_threshold

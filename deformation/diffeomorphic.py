@@ -22,9 +22,12 @@ class DiffeomorphicDeformation(object):
         self.forward_mappings = np.ones(
             (self.n_step + 1, self.ndim) + self.shape) * self.initial_grid
         self.backward_mappings = np.copy(self.forward_mappings)
-        self.forward_jacobian_determinants = np.ones(
+
+        # jacobian determinants of forward mappings
+        self.forward_dets = np.ones(
             (self.n_step + 1,) + self.shape)
-        self.backward_jacobian_determinants = np.ones(
+        # jacobian determinants of backward mappings
+        self.backward_dets = np.ones(
             (self.n_step + 1,) + self.shape)
 
     def euler_integration(self, grid, jacobian_matrix, vector_fields):
@@ -51,7 +54,7 @@ class DiffeomorphicDeformation(object):
             backward_jacobian_matrix = rtk.jacobian_matrix(
                 self.backward_mappings[i + 1])
 
-            self.forward_jacobian_determinants[i + 1] = rtk.determinant(
+            self.forward_dets[i + 1] = rtk.determinant(
                 forward_jacobian_matrix)
-            self.backward_jacobian_determinants[i + 1] = rtk.determinant(
+            self.backward_dets[i + 1] = rtk.determinant(
                 backward_jacobian_matrix)

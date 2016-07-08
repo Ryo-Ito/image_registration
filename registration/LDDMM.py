@@ -1,4 +1,5 @@
 import numpy as np
+from joblib import Parallel, delayed
 from registration import Registration
 from rtk.deformation import Deformation, VectorFields
 from rtk.image import SequentialScalarImages
@@ -13,7 +14,7 @@ class LDDMM(Registration):
         for i in xrange(self.n_step + 1):
             j = - i - 1
             momentum = (self.derivative(fixed[j], moving[i])
-                        * self.deformation.backward_jacobian_determinants[j]
+                        * self.deformation.backward_dets[j]
                         / self.penalty)
             grad = 2 * self.vector_fields[i] + self.regularizer(momentum)
             delta = self.learning_rate * grad
@@ -22,7 +23,23 @@ class LDDMM(Registration):
         self.integrate_vector_fields()
 
     def update_parallel(self, fixed, moving):
-        raise ValueError
+        if hasattr(self.regularizer, "set_operator"):
+            self.regularizer.set_operator(shape=fixed.shape)
+        self.vector_fields.delta_vector_fields = np.array(
+            Parallel(self.n_jobs)(
+                delayed(derivative)(self.derivative,
+                                    fixed[-i - 1],
+                                    moving[i],
+                                    self.deformation.backward_dets[-i - 1],
+                                    self.penalty,
+                                    self.vector_fields[i],
+                                    self.regularizer,
+                                    self.learning_rate)
+                for i in xrange(self.n_step + 1)
+                )
+            )
+        self.vector_fields.update()
+        self.integrate_vector_fields()
 
     def integrate_vector_fields(self):
         v = 0.5 * (self.vector_fields[:-1] + self.vector_fields[1:])
@@ -31,15 +48,6 @@ class LDDMM(Registration):
         forward_mapping_after = np.copy(self.deformation.forward_mappings[-1])
         self.delta_phi = np.max(
             np.abs(forward_mapping_after - forward_mapping_before))
-
-    def check_injectivity(self):
-        self.min_unit = np.min(
-            self.deformation.forward_jacobian_determinants[-1])
-        if self.min_unit < self.unit_threshold:
-            self.vector_fields.back_to_previous()
-            self.integrate_vector_fields()
-            print "reached limit of jacobian determinant %f" % self.unit_threshold
-        return self.min_unit > self.unit_threshold
 
     def execute(self):
         warp = Deformation(shape=self.shape)
@@ -101,6 +109,21 @@ class LDDMM(Registration):
 
         return self.zoom_grid(self.deformation.forward_mappings[-1],
                               resolution)
+
+
+def derivative(func,
+               fixed,
+               moving,
+               Dphi,
+               penalty,
+               vector_field,
+               regularizer,
+               learning_rate):
+    momentum = (func(fixed, moving)
+                * Dphi
+                / penalty)
+    grad = 2 * vector_field + regularizer(momentum)
+    return learning_rate * grad
 
 
 if __name__ == '__main__':

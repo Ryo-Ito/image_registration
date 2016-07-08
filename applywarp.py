@@ -18,7 +18,7 @@ def apply_transform(moving_img_file, transformation_file, output_img_file, fixed
     """
     moving_img = ScalarImage(filename=moving_img_file)
     fixed_img = ScalarImage(filename=fixed_img_file)
-    transform = Transformation(filename=transformation_file)
+    transform = Deformation(filename=transformation_file)
 
     warped_img = moving_img.apply_transform(transform)
 
