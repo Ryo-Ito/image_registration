@@ -669,7 +669,7 @@ class LDDMM(DiffeormorphicDeformation):
         else:
             raise ValueError("this similarity metric is not valid, %s" % self.similarity_metric)
 
-        self.delta_vector_fields = learning_rate * (self.vector_fields + derivative)
+        self.delta_vector_fields = learning_rate * (2 * self.vector_fields + derivative)
 
         self.vector_fields -= self.delta_vector_fields
 
