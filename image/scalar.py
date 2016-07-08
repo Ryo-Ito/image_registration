@@ -33,17 +33,25 @@ class ScalarImage(Image):
 
         Parameters
         ----------
-        shape : tuple
-            shape of the image after zooming
+        resolution : int
+            how much to magnify
+            if resolution is 2, the shape of the image will be halved
+        sigma : float
+            standard deviation of gaussian filter for smoothing
+        order : int
+            order of interpolation
 
         Returns
         -------
         img : ScalarImage
             zoomed scalar image
         """
-        blurred_data = gaussian_filter(self.data, sigma)
-        ratio = [1 / float(resolution)] * self.ndim
-        data = zoom(blurred_data, ratio, order=order)
+        if resolution != 1:
+            blurred_data = gaussian_filter(self.data, sigma)
+            ratio = [1 / float(resolution)] * self.ndim
+            data = zoom(blurred_data, ratio, order=order)
+        elif resolution == 1:
+            data = gaussian_filter(self.data, sigma)
         img = ScalarImage(data=data)
         return img
 
@@ -72,3 +80,9 @@ class ScalarImage(Image):
         warped_data = warp(self.data, deformation.grid, order=order)
         warped_img = ScalarImage(data=warped_data, affine=self.affine)
         return warped_img
+
+    def show(self):
+        import matplotlib.pyplot as plt
+        if self.ndim == 2:
+            plt.imshow(self.data, cmap='gray')
+            plt.show()
