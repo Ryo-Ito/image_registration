@@ -1,7 +1,10 @@
-from image import ScalarImage
-from deformation import Deformation
+import rtk
 
-def apply_transform(moving_img_file, transformation_file, output_img_file, fixed_img_file=None):
+
+def apply_warp(moving_img_file,
+               transformation_file,
+               output_img_file,
+               fixed_img_file=None):
     """
     apply transform and save the output image
 
@@ -16,9 +19,9 @@ def apply_transform(moving_img_file, transformation_file, output_img_file, fixed
     output_img_file : str
         file name of warped input image
     """
-    moving_img = ScalarImage(filename=moving_img_file)
-    fixed_img = ScalarImage(filename=fixed_img_file)
-    transform = Deformation(filename=transformation_file)
+    moving_img = rtk.image.ScalarImage(filename=moving_img_file)
+    fixed_img = rtk.image.ScalarImage(filename=fixed_img_file)
+    transform = rtk.deformation.Deformation(filename=transformation_file)
 
     warped_img = moving_img.apply_transform(transform)
 
@@ -31,10 +34,23 @@ def apply_transform(moving_img_file, transformation_file, output_img_file, fixed
 if __name__ == '__main__':
     import argparse
 
-    parser = argparse.ArgumentParser(description='applying transformation to an input image')
-    parser.add_argument('--input', '-i', type=str, help='moving image file')
-    parser.add_argument('--transformation', '-t', type=str, help='transformation file')
-    parser.add_argument('--output', '-o', type=str, help='output file without extension')
+    parser = argparse.ArgumentParser(
+        description='applying transformation to an input image')
+    parser.add_argument('-i', '--input',
+                        type=str,
+                        help="""
+moving image file\n
+                        """)
+    parser.add_argument('-t', '--transformation',
+                        type=str,
+                        help="""
+transformation file\n
+                        """)
+    parser.add_argument('-o', '--output',
+                        type=str,
+                        help="""
+output file name\n
+                        """)
 
     args = parser.parse_args()
-    apply_transform(args.input, args.transformation, args.output)
+    apply_warp(args.input, args.transformation, args.output)
