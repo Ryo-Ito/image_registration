@@ -32,7 +32,7 @@ class BiharmonicRegularizer(object):
 
     def __call__(self, momentum):
         if (hasattr(self, 'operator')
-            and momentum.shape[1:] == self.operator.shape):
+                and momentum.shape[1:] == self.operator.shape):
             G = np.zeros(momentum.shape, dtype=np.complex128)
             for i in xrange(len(momentum)):
                 G[i] = fftn(momentum[i])

@@ -95,7 +95,8 @@ class Deformation(object):
 
         print "saved transformation: %s" % filename
 
-    def save_as_img(self, filename, interval, limit_axis=True, show_axis=False):
+    def save_as_img(self, filename, interval,
+                    limit_axis=True, show_axis=False):
         import matplotlib.pyplot as plt
         if self.ndim == 2:
             if show_axis is False:
@@ -141,7 +142,3 @@ def warp_grid(grid, mapping_function, order=3, mode='nearest'):
             lines, mapping_function, order=order, mode=mode)
 
     return warped_grid
-
-if __name__ == '__main__':
-    # print dir(rtk)
-    print identity_mapping((4,5))

@@ -32,8 +32,3 @@ class GaussianRegularizer(object):
                         cval=self.cval,
                         truncate=self.truncate)
                     for flow in momentum))
-
-if __name__ == '__main__':
-    r = GaussianRegularizer()
-    print r
-    print r.__class__.__name__

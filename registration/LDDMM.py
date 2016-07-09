@@ -36,8 +36,8 @@ class LDDMM(Registration):
                                     self.regularizer,
                                     self.learning_rate)
                 for i in xrange(self.n_step + 1)
-                )
             )
+        )
         self.vector_fields.update()
         self.integrate_vector_fields()
 
@@ -97,14 +97,16 @@ class LDDMM(Registration):
                 fixed_images.apply_transforms(
                     self.deformation.backward_mappings)
 
+            max_delta_phi = self.delta_phi * (max_iter - i)
             print "iteration%4d, Energy %f" % (
                 i + 1,
                 self.cost_function(fixed_images[0], moving_images[-1]))
             print 14 * ' ', "minimum unit", self.min_unit
             print 14 * ' ', "delta phi", self.delta_phi
-            print 14 * ' ', "maximum delta phi", self.delta_phi * (max_iter - i)
-            if self.delta_phi * (max_iter - i) < self.delta_phi_threshold / resolution:
-                print "|maximum norm of displacement| x iteration < %f voxel" % (self.delta_phi_threshold / resolution)
+            print 14 * ' ', "maximum delta phi", max_delta_phi
+            if max_delta_phi < self.delta_phi_threshold / resolution:
+                print "|L_inf norm of displacement| x iter < %f voxel" % (
+                    self.delta_phi_threshold / resolution)
                 break
 
         return self.zoom_grid(self.deformation.forward_mappings[-1],
@@ -126,7 +128,8 @@ class LDDMM(Registration):
             v = 0.5 * (self.vector_fields[:-1] + self.vector_fields[1:])
             self.deformation.update_mappings(v)
 
-            vector_fields = self.optimization_coarse_to_fine(fixed, moving, n_iter, resolution)
+            vector_fields = self.optimization_coarse_to_fine(
+                fixed, moving, n_iter, resolution)
 
         return self.deformation
 
@@ -158,14 +161,16 @@ class LDDMM(Registration):
                 fixed_images.apply_transforms(
                     self.deformation.backward_mappings)
 
+            max_delta_phi = self.delta_phi * (max_iter - i)
             print "iteration%4d, Energy %f" % (
                 i + 1,
                 self.cost_function(fixed_images[0], moving_images[-1]))
             print 14 * ' ', "minimum unit", self.min_unit
             print 14 * ' ', "delta phi", self.delta_phi
-            print 14 * ' ', "maximum delta phi", self.delta_phi * (max_iter - i)
-            if self.delta_phi * (max_iter - i) < self.delta_phi_threshold / resolution:
-                print "|maximum norm of displacement| x iteration < %f voxel" % (self.delta_phi_threshold / resolution)
+            print 14 * ' ', "maximum delta phi {0}".format(max_delta_phi)
+            if max_delta_phi < self.delta_phi_threshold / resolution:
+                print "|L_inf norm of displacement| x iter < %f voxel" % (
+                    self.delta_phi_threshold / resolution)
                 break
 
         return self.vector_fields.change_resolution(resolution=1. / resolution)

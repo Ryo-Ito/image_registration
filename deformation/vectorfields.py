@@ -33,7 +33,7 @@ class VectorFields(object):
     def update(self):
         """
         update vector fields
-        
+
         v_next = v_now - learning_rate * nabla(Energy)
         """
         self.vector_fields -= self.delta_vector_fields

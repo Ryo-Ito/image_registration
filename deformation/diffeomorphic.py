@@ -31,7 +31,9 @@ class DiffeomorphicDeformation(object):
             (self.n_step + 1,) + self.shape)
 
     def euler_integration(self, grid, jacobian_matrix, vector_fields):
-        return grid - np.einsum('ij...,j...->i...', jacobian_matrix, vector_fields) * self.delta_time
+        return grid - np.einsum('ij...,j...->i...',
+                                jacobian_matrix,
+                                vector_fields) * self.delta_time
 
     def update_mappings(self, vector_fields):
         assert len(vector_fields) == self.n_step

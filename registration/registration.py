@@ -138,7 +138,9 @@ class Registration(object):
         if resolution != 1:
             interpolated_grid = np.zeros((self.ndim,) + self.shape)
             for i in xrange(self.ndim):
-                interpolated_grid[i] = rtk.interpolate_mapping(grid[i], np.array(self.shape, dtype=np.int32)) * (self.shape[i] - 1) / (shape[i] - 1)
+                interpolated_grid[i] = rtk.interpolate_mapping(
+                    grid[i], np.array(self.shape, dtype=np.int32)
+                ) * (self.shape[i] - 1) / (shape[i] - 1)
             return interpolated_grid
         else:
             return grid

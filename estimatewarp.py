@@ -4,9 +4,8 @@ import rtk
 
 def main():
     parser = argparse.ArgumentParser(description="""
-        estimating transformation from a moivng image to a fixed image
-        """,
-        formatter_class=argparse.RawTextHelpFormatter)
+estimating transformation from a moivng image to a fixed image
+        """, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-m', '--moving',
                         type=str,
                         help="""
@@ -128,7 +127,7 @@ maximum number of updating estimate of vector field
 Default: [50, 20, 10]\n
                         """)
     parser.add_argument('--resolution_level',
-                        default=[4,2,1],
+                        default=[4, 2, 1],
                         type=int,
                         nargs='*',
                         action='store',
@@ -182,7 +181,8 @@ Default: 1
     moving = rtk.image.ScalarImage(filename=args.moving)
 
     if args.regularizer == 'biharmonic':
-        regularizer = rtk.regularizer.BiharmonicRegularizer(args.convexity_penalty, args.norm_penalty)
+        regularizer = rtk.regularizer.BiharmonicRegularizer(
+            args.convexity_penalty, args.norm_penalty)
     elif args.regularizer == 'gaussian':
         regularizer = rtk.regularizer.GaussianRegularizer()
 

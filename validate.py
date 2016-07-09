@@ -29,7 +29,8 @@ def local_label_dissimilarity(img1, img2, window_length):
     label_difference = np.abs(data1 - data2)
     label_difference[np.where(label_difference > 0)] = 1.
 
-    dissimilarity = uniform_filter(label_difference, window_length) / window_size
+    dissimilarity = uniform_filter(
+        label_difference, window_length) / window_size
 
     return dissimilarity
 
@@ -56,7 +57,8 @@ def test():
 
     dissimilarity = local_label_dissimilarity(fixed_img, moving_img, 5)
 
-    dissimilarity_img = ScalarImage(data=dissimilarity, affine=fixed_img.get_affine())
+    dissimilarity_img = ScalarImage(data=dissimilarity,
+                                    affine=fixed_img.get_affine())
 
     dissimilarity_img.save(join(dname, 'LDDMM/dissimilarity.nii.gz'))
 
