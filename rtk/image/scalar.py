@@ -81,8 +81,10 @@ class ScalarImage(Image):
         warped_img = ScalarImage(data=warped_data, affine=self.affine)
         return warped_img
 
-    def show(self):
+    def show(self, show_axis=False):
         import matplotlib.pyplot as plt
         if self.ndim == 2:
+            if show_axis is False:
+                plt.axis('off')
             plt.imshow(self.data, cmap='gray')
             plt.show()
