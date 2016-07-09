@@ -1,5 +1,4 @@
-from image import ScalarImage
-from deformation import Deformation
+import rtk
 
 
 def apply_warp(moving_img_file,
@@ -20,9 +19,9 @@ def apply_warp(moving_img_file,
     output_img_file : str
         file name of warped input image
     """
-    moving_img = ScalarImage(filename=moving_img_file)
-    fixed_img = ScalarImage(filename=fixed_img_file)
-    transform = Deformation(filename=transformation_file)
+    moving_img = rtk.image.ScalarImage(filename=moving_img_file)
+    fixed_img = rtk.image.ScalarImage(filename=fixed_img_file)
+    transform = rtk.deformation.Deformation(filename=transformation_file)
 
     warped_img = moving_img.apply_transform(transform)
 
@@ -50,7 +49,7 @@ transformation file\n
     parser.add_argument('-o', '--output',
                         type=str,
                         help="""
-output file without extension\n
+output file name\n
                         """)
 
     args = parser.parse_args()
