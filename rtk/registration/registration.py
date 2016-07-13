@@ -85,6 +85,7 @@ class Registration(object):
         if hasattr(self, 'window_length'):
             print "window length", self.window_length
         print "regularization", self.regularizer.__class__.__name__
+        print "penalty", self.penalty
         print "iterations", self.n_iters
         print "resolutions", self.resolutions
         print "smoothing sigmas", self.smoothing_sigmas

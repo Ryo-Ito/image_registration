@@ -4,7 +4,7 @@ import rtk
 def apply_warp(moving_img_file,
                transformation_file,
                output_img_file,
-               fixed_img_file=None):
+               order):
     """
     apply transform and save the output image
 
@@ -12,21 +12,17 @@ def apply_warp(moving_img_file,
     ----------
     moving_img_file : str
         file name of input image
-    fixed_img_file : str
-        file name of template image
     transformation_file : str
         file name of transformation applying
     output_img_file : str
         file name of warped input image
+    order : int
+        order of interpolation
     """
     moving_img = rtk.image.ScalarImage(filename=moving_img_file)
-    fixed_img = rtk.image.ScalarImage(filename=fixed_img_file)
     transform = rtk.deformation.Deformation(filename=transformation_file)
 
-    warped_img = moving_img.apply_transform(transform)
-
-    if fixed_img_file is not None:
-        warped_img.affine = fixed_img.get_affine()
+    warped_img = moving_img.apply_transform(transform, order=order)
 
     warped_img.save(filename=output_img_file)
 
@@ -51,6 +47,11 @@ transformation file\n
                         help="""
 output file name\n
                         """)
+    parser.add_argument('--order',
+                        type=int,
+                        help="""
+order of interpolation\n
+                        """)
 
     args = parser.parse_args()
-    apply_warp(args.input, args.transformation, args.output)
+    apply_warp(args.input, args.transformation, args.output, args.order)

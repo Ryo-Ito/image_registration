@@ -4,15 +4,19 @@ from rtk import uniform_filter, gradient
 np.seterr(all='ignore')
 
 
-def cost_function_zncc(I, J, window_length, window_size):
+def local_zncc(I, J, window_length, window_size):
     Im = uniform_filter(I, window_length) / window_size
     Jm = uniform_filter(J, window_length) / window_size
     II = uniform_filter(I * I, window_length) - window_size * Im * Im
     JJ = uniform_filter(J * J, window_length) - window_size * Jm * Jm
     IJ = uniform_filter(I * J, window_length) - window_size * Im * Jm
-    E = (IJ ** 2) / (II * JJ)
-    E[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
-    return - np.sum(E)
+    lzncc = (IJ ** 2) / (II * JJ)
+    lzncc[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
+    return lzncc
+
+
+def cost_function_zncc(I, J, window_length, window_size):
+    return - np.sum(local_zncc(I, J, window_length, window_size))
 
 
 def derivative_zncc(J, I, window_length, window_size):
