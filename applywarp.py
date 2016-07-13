@@ -49,6 +49,7 @@ output file name\n
                         """)
     parser.add_argument('--order',
                         type=int,
+                        default=1,
                         help="""
 order of interpolation\n
                         """)
