@@ -46,18 +46,16 @@ class SyN(Registration):
             j = -i - 1
 
             # moving -> midpoint
-            momentum = (self.derivative(fixed[j], moving[i])
-                        * self.deformation.backward_dets[j]
-                        / self.penalty)
+            momentum = (self.similarity.derivative(fixed[j], moving[i])
+                        * self.deformation.backward_dets[j])
             grad = self.learning_rate * (
                 2*self.forward_vector_fields[i] + self.regularizer(momentum)
             )
             self.forward_vector_fields.delta_vector_fields[i] = np.copy(grad)
 
             # midpoint <- fixed
-            momentum = (self.derivative(moving[j], fixed[i])
-                        * self.deformation.forward_dets[j]
-                        / self.penalty)
+            momentum = (self.similarity.derivative(moving[j], fixed[i])
+                        * self.deformation.forward_dets[j])
             grad = self.learning_rate * (
                 2*self.backward_vector_fields[i] + self.regularizer(momentum)
             )
@@ -74,11 +72,10 @@ class SyN(Registration):
         self.forward_vector_fields.delta_vector_fields = np.array(
             Parallel(self.n_jobs)(
                 delayed(derivative)(
-                    self.derivative,
+                    self.similarity.derivative,
                     fixed[-i - 1],
                     moving[i],
                     self.deformation.backward_dets[-i - 1],
-                    self.penalty,
                     self.forward_vector_fields[i],
                     self.regularizer,
                     self.learning_rate)
@@ -88,11 +85,10 @@ class SyN(Registration):
         self.backward_vector_fields.delta_vector_fields = np.array(
             Parallel(self.n_jobs)(
                 delayed(derivative)(
-                    self.derivative,
+                    self.similarity.derivative,
                     moving[-i - 1],
                     fixed[i],
                     self.deformation.forward_dets[-i - 1],
-                    self.penalty,
                     self.backward_vector_fields[i],
                     self.regularizer,
                     self.learning_rate)
@@ -160,7 +156,7 @@ class SyN(Registration):
         moving_images = SequentialScalarImages(moving, self.n_step + 1)
 
         print "iteration   0, Energy %f" % (
-            self.cost_function(fixed.data, moving.data))
+            self.similarity.cost(fixed.data, moving.data))
 
         for i in xrange(max_iter):
             if self.parallel:
@@ -185,8 +181,8 @@ class SyN(Registration):
             max_delta_phi = self.delta_phi * (max_iter - i)
             print "iteration%4d, Energy %f" % (
                 i + 1,
-                self.cost_function(fixed_images[self.n_step_half],
-                                   moving_images[self.n_step_half])
+                self.similarity.cost(fixed_images[self.n_step_half],
+                                     moving_images[self.n_step_half])
             )
             print 14 * ' ', "minimum unit", self.min_unit
             print 14 * ' ', "delta phi", self.delta_phi
@@ -215,12 +211,10 @@ def derivative(func,
                fixed,
                moving,
                Dphi,
-               penalty,
                vector_field,
                regularizer,
                learning_rate):
     momentum = (func(fixed, moving)
-                * Dphi
-                / penalty)
+                * Dphi)
     grad = 2 * vector_field + regularizer(momentum)
     return learning_rate * grad

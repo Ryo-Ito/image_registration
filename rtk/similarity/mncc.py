@@ -2,54 +2,68 @@ import numpy as np
 from rtk import gradient, sliding_matrix_product as smp
 
 
-def cost_function_mncc(I, J, matrix):
-    Ai = smp(I, matrix)
-    Aj = smp(J, matrix)
+class MNCC(object):
 
-    II = np.einsum('...i,...i->...', Ai, Ai)
-    JJ = np.einsum('...i,...i->...', Aj, Aj)
-    IJ = np.einsum('...i,...i->...', Ai, Aj)
-    IIJJ = II * JJ
-    E = (IJ ** 2) / IIJJ
-    E[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
+    def __init__(self, penalty, matrix):
+        self.penalty = penalty
+        self.matrix = matrix
+        self.index = int((len(matrix) - 1) / 2)
 
-    return - np.sum(E)
+    def __str__(self):
+        return ("Mahalanobis Normalized Cross Correlation"
+                + ", penalty=" + str(self.penalty)
+                + ", window_size" + str(len(self.matrix)))
 
+    def cost(self, J, I):
+        return np.sum(self.local_cost(J, I))
 
-def derivative_mncc(J, I, matrix):
-    """
-    derivative of cost function of mahalanobis normalized cross correlation
+    def local_cost(self, J, I):
+        Ai = smp(I, self.matrix)
+        Aj = smp(J, self.matrix)
 
-    Parameters
-    ----------
-    J : ndarray
-        Input deformed fixed image.
-        eg. 3 dimensional case (len(x), len(y), len(z))
-    I : ndarray
-        Input deformed moving image.
-    matrix : ndarray
-        metric matrix
+        II = np.einsum('...i,...i->...', Ai, Ai)
+        JJ = np.einsum('...i,...i->...', Aj, Aj)
+        IJ = np.einsum('...i,...i->...', Ai, Aj)
+        IIJJ = II * JJ
+        cost = -(IJ ** 2) / IIJJ
+        cost[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
 
-    Returns
-    -------
-    momentum : ndarray
-        Unsmoothed vector field
-    """
-    assert(I.dtype == np.float)
-    assert(J.dtype == np.float)
-    index = int((len(matrix) - 1) / 2)
-    Ai = smp(I, matrix)
-    Aj = smp(J, matrix)
-    Ibar = np.copy(Ai[..., index]).astype(np.float)
-    Jbar = np.copy(Aj[..., index]).astype(np.float)
+        return cost
 
-    II = np.einsum('...i,...i->...', Ai, Ai)
-    JJ = np.einsum('...i,...i->...', Aj, Aj)
-    IJ = np.einsum('...i,...i->...', Ai, Aj)
-    IIJJ = II * JJ
-    IJoverIIJJ = IJ / IIJJ
-    IJoverII = IJ / II
-    IJoverIIJJ[np.where(IIJJ < 1e-3)] = 0
-    IJoverII[np.where(II < 1e-3)] = 0
+    def derivative(self, J, I):
+        """
+        derivative of cost function of mahalanobis normalized cross correlation
 
-    return 2 * gradient(Ibar) * IJoverIIJJ * (Jbar - Ibar * IJoverII)
+        Parameters
+        ----------
+        J : ndarray
+            Input deformed fixed image.
+            eg. 3 dimensional case (len(x), len(y), len(z))
+        I : ndarray
+            Input deformed moving image.
+        matrix : ndarray
+            metric matrix
+
+        Returns
+        -------
+        momentum : ndarray
+            Unsmoothed vector field
+        """
+        assert(I.dtype == np.float)
+        assert(J.dtype == np.float)
+        Ai = smp(I, self.matrix)
+        Aj = smp(J, self.matrix)
+        Ibar = np.copy(Ai[..., self.index]).astype(np.float)
+        Jbar = np.copy(Aj[..., self.index]).astype(np.float)
+
+        II = np.einsum('...i,...i->...', Ai, Ai)
+        JJ = np.einsum('...i,...i->...', Aj, Aj)
+        IJ = np.einsum('...i,...i->...', Ai, Aj)
+        IIJJ = II * JJ
+        IJoverIIJJ = IJ / IIJJ
+        IJoverII = IJ / II
+        IJoverIIJJ[np.where(IIJJ < 1e-3)] = 0
+        IJoverII[np.where(II < 1e-3)] = 0
+
+        return (2 * gradient(Ibar) * IJoverIIJJ
+                * (Jbar - Ibar * IJoverII) / self.penalty)

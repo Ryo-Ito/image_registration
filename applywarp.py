@@ -55,4 +55,6 @@ order of interpolation\n
                         """)
 
     args = parser.parse_args()
+    print "warp to apply:", args.transformation
+    print "apply warp to this image:", args.input
     apply_warp(args.input, args.transformation, args.output, args.order)

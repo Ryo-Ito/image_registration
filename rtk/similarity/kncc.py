@@ -1,40 +1,65 @@
 import numpy as np
-from scipy.ndimage.filters import correlate, gradient
+from scipy.ndimage.filters import correlate
+from rtk import gradient
 
 np.seterr(all='ignore')
 
 
-def local_kncc(J, I, kernel):
-    Im = correlate(I, kernel, mode='constant') / kernel.size
-    Jm = correlate(J, kernel, mode='constant') / kernel.size
-    II = correlate(I * I, kernel, mode='constant') - kernel.size * Im * Im
-    JJ = correlate(J * J, kernel, mode='constant') - kernel.size * Jm * Jm
-    IJ = correlate(I * J, kernel, mode='constant') - kernel.size * Im * Jm
+class KNCC(object):
+    """
+    kernel normalized cross correlation
+    similairty = <I,J>^2 / (<I,I> * <J,J>)
+    <I,J> = sum{G*(I - I_bar)(J - J_bar)}
+    I_bar = sum(G*I)
+    G is a general convolution kernel
+    """
 
-    lkncc = (IJ ** 2) / (II * JJ)
-    lkncc[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
-    return lkncc
+    def __init__(self, penalty, kernel):
+        self.penalty = penalty
+        self.kernel = kernel
+        self.kernel_size = kernel.size
 
+    def __str__(self):
+        return ("Kernel Normalized Cross Correlation"
+                + ", penalty=" + str(self.penalty)
+                + ", kernel_size=" + str(self.kernel_size))
 
-def cost_function_kncc(J, I, kernel):
-    return - np.sum(local_kncc(J, I, kernel))
+    def cost(self, J, I):
+        return np.sum(self.local_cost(J, I))
 
+    def local_cost(self, J, I):
+        Im = correlate(I, self.kernel, mode='constant') / self.kernel_size
+        Jm = correlate(J, self.kernel, mode='constant') / self.kernel_size
+        II = (correlate(I * I, self.kernel, mode='constant')
+              - self.kernel_size * Im * Im)
+        JJ = (correlate(J * J, self.kernel, mode='constant')
+              - self.kernel_size * Jm * Jm)
+        IJ = (correlate(I * J, self.kernel, mode='constant')
+              - self.kernel_size * Im * Jm)
 
-def derivative_kncc(J, I, kernel):
-    Im = correlate(I, kernel) / kernel.size
-    Jm = correlate(J, kernel) / kernel.size
+        cost = -(IJ ** 2) / (II * JJ)
+        cost[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
+        return cost
 
-    Ibar = I - Im
-    Jbar = J - Jm
+    def derivative(self, J, I):
+        Im = correlate(I, self.kernel, mode='constant') / self.kernel_size
+        Jm = correlate(J, self.kernel, mode='constant') / self.kernel_size
 
-    II = correlate(I * I, kernel) - kernel.size * Im * Im
-    JJ = correlate(J * J, kernel) - kernel.size * Jm * Jm
-    IJ = correlate(I * J, kernel) - kernel.size * Im * Jm
+        Ibar = I - Im
+        Jbar = J - Jm
 
-    denom = II * JJ
-    IJoverIIJJ = IJ / denom
-    IJoverII = IJ / II
-    IJoverIIJJ[np.where(denom < 1e-3)] = 0
-    IJoverII[np.where(II < 1e-3)] = 0
+        II = (correlate(I * I, self.kernel, mode='constant')
+              - self.kernel_size * Im * Im)
+        JJ = (correlate(J * J, self.kernel, mode='constant')
+              - self.kernel_size * Jm * Jm)
+        IJ = (correlate(I * J, self.kernel, mode='constant')
+              - self.kernel_size * Im * Jm)
 
-    return 2 * gradient(Ibar) * IJoverIIJJ * (Jbar - Ibar * IJoverII)
+        denom = II * JJ
+        IJoverIIJJ = IJ / denom
+        IJoverII = IJ / II
+        IJoverIIJJ[np.where(denom < 1e-3)] = 0
+        IJoverII[np.where(II < 1e-3)] = 0
+
+        return (2 * gradient(Ibar) * IJoverIIJJ
+                * (Jbar - Ibar * IJoverII) / self.penalty)

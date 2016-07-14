@@ -4,57 +4,71 @@ from rtk import uniform_filter, gradient
 np.seterr(all='ignore')
 
 
-def local_zncc(I, J, window_length, window_size):
-    Im = uniform_filter(I, window_length) / window_size
-    Jm = uniform_filter(J, window_length) / window_size
-    II = uniform_filter(I * I, window_length) - window_size * Im * Im
-    JJ = uniform_filter(J * J, window_length) - window_size * Jm * Jm
-    IJ = uniform_filter(I * J, window_length) - window_size * Im * Jm
-    lzncc = (IJ ** 2) / (II * JJ)
-    lzncc[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
-    return lzncc
+class ZNCC(object):
 
+    def __init__(self, penalty, window_length, window_size):
+        self.penalty = penalty
+        self.window_length = window_length
+        self.window_size = window_size
 
-def cost_function_zncc(I, J, window_length, window_size):
-    return - np.sum(local_zncc(I, J, window_length, window_size))
+    def __str__(self):
+        return ("Zero-means Normalized Cross Correlation, panalty="
+                + str(self.penalty)
+                + ", window_length="
+                + str(self.window_length))
 
+    def cost(self, J, I):
+        return np.sum(self.local_cost(J, I))
 
-def derivative_zncc(J, I, window_length, window_size):
-    """
-    derivative of cost function of zero means normalized cross correlation
+    def local_cost(self, J, I):
+        Im = uniform_filter(I, self.window_length) / self.window_size
+        Jm = uniform_filter(J, self.window_length) / self.window_size
+        II = (uniform_filter(I * I, self.window_length)
+              - self.window_size * Im * Im)
+        JJ = (uniform_filter(J * J, self.window_length)
+              - self.window_size * Jm * Jm)
+        IJ = (uniform_filter(I * J, self.window_length)
+              - self.window_size * Im * Jm)
+        cost = -(IJ ** 2) / (II * JJ)
+        cost[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
+        return cost
 
-    Parameters
-    ----------
-    J : ndarray
-        Input deformed fixed images.
-        eg. 3 dimensional case (len(x), len(y), len(z))
-    I : ndarray
-        Input deformed moving images.
-    window_length: int
-        window_length of window
-    window_size: int
-        window_size of window
+    def derivative(self, J, I):
+        """
+        derivative of cost function of zero means normalized cross correlation
 
-    Returns
-    -------
-    momentum : ndarray
-        momentum field.
-        eg. 3d case (dimension, len(x), len(y), len(z))
-    """
-    Im = uniform_filter(I, window_length) / window_size
-    Jm = uniform_filter(J, window_length) / window_size
+        Parameters
+        ----------
+        J : ndarray
+            Input deformed fixed images.
+            eg. 3 dimensional case (len(x), len(y), len(z))
+        I : ndarray
+            Input deformed moving images.
 
-    Ibar = I - Im
-    Jbar = J - Jm
+        Returns
+        -------
+        momentum : ndarray
+            momentum field.
+            eg. 3d case (dimension, len(x), len(y), len(z))
+        """
+        Im = uniform_filter(I, self.window_length) / self.window_size
+        Jm = uniform_filter(J, self.window_length) / self.window_size
 
-    II = uniform_filter(I * I, window_length) - window_size * Im * Im
-    JJ = uniform_filter(J * J, window_length) - window_size * Jm * Jm
-    IJ = uniform_filter(I * J, window_length) - window_size * Im * Jm
+        Ibar = I - Im
+        Jbar = J - Jm
 
-    denom = II * JJ
-    IJoverIIJJ = IJ / denom
-    IJoverII = IJ / II
-    IJoverIIJJ[np.where(denom < 1e-3)] = 0
-    IJoverII[np.where(II < 1e-3)] = 0
+        II = (uniform_filter(I * I, self.window_length)
+              - self.window_size * Im * Im)
+        JJ = (uniform_filter(J * J, self.window_length)
+              - self.window_size * Jm * Jm)
+        IJ = (uniform_filter(I * J, self.window_length)
+              - self.window_size * Im * Jm)
 
-    return 2 * gradient(Ibar) * IJoverIIJJ * (Jbar - Ibar * IJoverII)
+        denom = II * JJ
+        IJoverIIJJ = IJ / denom
+        IJoverII = IJ / II
+        IJoverIIJJ[np.where(denom < 1e-3)] = 0
+        IJoverII[np.where(II < 1e-3)] = 0
+
+        return (2 * gradient(Ibar) * IJoverIIJJ
+                * (Jbar - Ibar * IJoverII) / self.penalty)
