@@ -211,7 +211,6 @@ Default: 1
         import rtk.registration.SyN as Registration
 
     reg = Registration(
-        ndim=fixed.ndim,
         n_step=args.deformation_step,
         regularizer=regularizer,
         similarity=similarity,
@@ -221,7 +220,6 @@ Default: 1
         delta_phi_threshold=args.delta_phi_threshold,
         unit_threshold=args.unit_threshold,
         learning_rate=args.learning_rate,
-        parallel=(args.n_jobs != 1),
         n_jobs=args.n_jobs)
     print "fixed image:", args.fixed
     print "moving image:", args.moving

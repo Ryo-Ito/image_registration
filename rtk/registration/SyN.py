@@ -78,7 +78,7 @@ class SyN(Registration):
         self.forward_vector_fields.delta_vector_fields = np.array(
             Parallel(self.n_jobs)(
                 delayed(derivative)(
-                    self.similarity.derivative,
+                    self.similarity,
                     fixed[-i - 1],
                     moving[i],
                     self.deformation.backward_dets[-i - 1],
@@ -91,7 +91,7 @@ class SyN(Registration):
         self.backward_vector_fields.delta_vector_fields = np.array(
             Parallel(self.n_jobs)(
                 delayed(derivative)(
-                    self.similarity.derivative,
+                    self.similarity,
                     moving[-i - 1],
                     fixed[i],
                     self.deformation.forward_dets[-i - 1],
@@ -210,14 +210,13 @@ class SyN(Registration):
                 Deformation(grid=backward_mapping_inverse))
 
 
-def derivative(func,
+def derivative(similarity,
                fixed,
                moving,
                Dphi,
                vector_field,
                regularizer,
                learning_rate):
-    momentum = (func(fixed, moving)
-                * Dphi)
+    momentum = similarity.derivative(fixed, moving) * Dphi
     grad = 2 * vector_field + regularizer(momentum)
     return learning_rate * grad
