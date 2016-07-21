@@ -1,5 +1,5 @@
 import numpy as np
-from rtk import gradient, sliding_matrix_product as smp
+from rtk import gradient, sliding_matmul
 
 
 class MNCC(object):
@@ -18,8 +18,8 @@ class MNCC(object):
         return np.sum(self.local_cost(J, I))
 
     def local_cost(self, J, I):
-        Ai = smp(I, self.matrix)
-        Aj = smp(J, self.matrix)
+        Ai = sliding_matmul(I, self.matrix)
+        Aj = sliding_matmul(J, self.matrix)
 
         II = np.einsum('...i,...i->...', Ai, Ai)
         JJ = np.einsum('...i,...i->...', Aj, Aj)
@@ -51,8 +51,8 @@ class MNCC(object):
         """
         assert(I.dtype == np.float)
         assert(J.dtype == np.float)
-        Ai = smp(I, self.matrix)
-        Aj = smp(J, self.matrix)
+        Ai = sliding_matmul(I, self.matrix)
+        Aj = sliding_matmul(J, self.matrix)
         Ibar = np.copy(Ai[..., self.index]).astype(np.float)
         Jbar = np.copy(Aj[..., self.index]).astype(np.float)
 

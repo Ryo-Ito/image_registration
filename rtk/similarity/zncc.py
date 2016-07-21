@@ -1,5 +1,5 @@
 import numpy as np
-from rtk import uniform_filter, gradient
+from rtk import uniform_convolve, gradient
 
 np.seterr(all='ignore')
 
@@ -21,13 +21,13 @@ class ZNCC(object):
         return np.sum(self.local_cost(J, I))
 
     def local_cost(self, J, I):
-        Im = uniform_filter(I, self.window_length) / self.window_size
-        Jm = uniform_filter(J, self.window_length) / self.window_size
-        II = (uniform_filter(I * I, self.window_length)
+        Im = uniform_convolve(I, self.window_length) / self.window_size
+        Jm = uniform_convolve(J, self.window_length) / self.window_size
+        II = (uniform_convolve(I * I, self.window_length)
               - self.window_size * Im * Im)
-        JJ = (uniform_filter(J * J, self.window_length)
+        JJ = (uniform_convolve(J * J, self.window_length)
               - self.window_size * Jm * Jm)
-        IJ = (uniform_filter(I * J, self.window_length)
+        IJ = (uniform_convolve(I * J, self.window_length)
               - self.window_size * Im * Jm)
         cost = -(IJ ** 2) / (II * JJ)
         cost[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
@@ -51,17 +51,17 @@ class ZNCC(object):
             momentum field.
             eg. 3d case (dimension, len(x), len(y), len(z))
         """
-        Im = uniform_filter(I, self.window_length) / self.window_size
-        Jm = uniform_filter(J, self.window_length) / self.window_size
+        Im = uniform_convolve(I, self.window_length) / self.window_size
+        Jm = uniform_convolve(J, self.window_length) / self.window_size
 
         Ibar = I - Im
         Jbar = J - Jm
 
-        II = (uniform_filter(I * I, self.window_length)
+        II = (uniform_convolve(I * I, self.window_length)
               - self.window_size * Im * Im)
-        JJ = (uniform_filter(J * J, self.window_length)
+        JJ = (uniform_convolve(J * J, self.window_length)
               - self.window_size * Jm * Jm)
-        IJ = (uniform_filter(I * J, self.window_length)
+        IJ = (uniform_convolve(I * J, self.window_length)
               - self.window_size * Im * Jm)
 
         denom = II * JJ
