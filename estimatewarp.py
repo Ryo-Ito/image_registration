@@ -104,7 +104,7 @@ Default: 1.\n
 penalty coefficient for norm of vector
 Default: 1.\n
                         """)
-    parser.add_argument('--vector_smooth',
+    parser.add_argument('--gaussian_vector_smooth',
                         default=1.,
                         type=float,
                         help="""
@@ -210,7 +210,8 @@ Default: 1
         regularizer = rtk.regularizer.BiharmonicRegularizer(
             args.convexity_penalty, args.norm_penalty)
     elif args.regularizer == 'gaussian':
-        regularizer = rtk.regularizer.GaussianRegularizer()
+        regularizer = rtk.regularizer.GaussianRegularizer(
+            args.gaussian_vector_smooth)
 
     if args.transformation == 'LDDMM':
         import rtk.registration.LDDMM as Registration
