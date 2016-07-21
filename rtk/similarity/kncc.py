@@ -14,14 +14,14 @@ class KNCC(object):
     G is a general convolution kernel
     """
 
-    def __init__(self, penalty, kernel):
-        self.penalty = penalty
+    def __init__(self, variance, kernel):
+        self.variance = variance
         self.kernel = kernel
         self.kernel_size = kernel.size
 
     def __str__(self):
         return ("Kernel Normalized Cross Correlation"
-                + ", penalty=" + str(self.penalty)
+                + ", variance=" + str(self.variance)
                 + ", kernel_size=" + str(self.kernel_size))
 
     def cost(self, J, I):
@@ -62,4 +62,4 @@ class KNCC(object):
         IJoverII[np.where(II < 1e-3)] = 0
 
         return (2 * gradient(Ibar) * IJoverIIJJ
-                * (Jbar - Ibar * IJoverII) / self.penalty)
+                * (Jbar - Ibar * IJoverII) / self.variance)

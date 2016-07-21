@@ -6,14 +6,14 @@ np.seterr(all='ignore')
 
 class ZNCC(object):
 
-    def __init__(self, penalty, window_length, window_size):
-        self.penalty = penalty
+    def __init__(self, variance, window_length, window_size):
+        self.variance = variance
         self.window_length = window_length
         self.window_size = window_size
 
     def __str__(self):
         return ("Zero-means Normalized Cross Correlation, panalty="
-                + str(self.penalty)
+                + str(self.variance)
                 + ", window_length="
                 + str(self.window_length))
 
@@ -71,4 +71,4 @@ class ZNCC(object):
         IJoverII[np.where(II < 1e-3)] = 0
 
         return (2 * gradient(Ibar) * IJoverIIJJ
-                * (Jbar - Ibar * IJoverII) / self.penalty)
+                * (Jbar - Ibar * IJoverII) / self.variance)

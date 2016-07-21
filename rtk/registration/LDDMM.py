@@ -11,6 +11,12 @@ class LDDMM(Registration):
         self.vector_fields = VectorFields(self.n_step, shape)
 
     def update(self, fixed, moving):
+        if self.n_jobs != 1:
+            self.update_parallel(fixed, moving)
+        else:
+            self.update_sequential(fixed, moving)
+
+    def update_sequential(self, fixed, moving):
         for i in xrange(self.n_step + 1):
             j = - i - 1
             momentum = (self.similarity.derivative(fixed[j], moving[i])
@@ -76,15 +82,12 @@ class LDDMM(Registration):
             self.similarity.cost(fixed.data, moving.data))
 
         for i in xrange(max_iter):
-            if self.parallel:
-                self.update_parallel(fixed_images, moving_images)
-            else:
-                self.update(fixed_images, moving_images)
+            self.update(fixed_images, moving_images)
 
             if not self.check_injectivity():
                 break
 
-            if self.parallel:
+            if self.n_jobs != 1:
                 moving_images.apply_transforms_parallel(
                     self.deformation.forward_mappings, self.n_jobs)
                 fixed_images.apply_transforms_parallel(
@@ -140,15 +143,12 @@ class LDDMM(Registration):
             self.similarity.cost(fixed_images[0], moving_images[-1]))
 
         for i in xrange(max_iter):
-            if self.parallel:
-                self.update_parallel(fixed_images, moving_images)
-            else:
-                self.update(fixed_images, moving_images)
+            self.update(fixed_images, moving_images)
 
             if not self.check_injectivity():
                 break
 
-            if self.parallel:
+            if self.n_jobs != 1:
                 moving_images.apply_transforms_parallel(
                     self.deformation.forward_mappings, self.n_jobs)
                 fixed_images.apply_transforms_parallel(

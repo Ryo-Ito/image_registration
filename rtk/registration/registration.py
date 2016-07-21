@@ -6,7 +6,6 @@ from rtk.deformation import DiffeomorphicDeformation
 class Registration(object):
 
     def __init__(self,
-                 ndim,
                  n_step,
                  regularizer,
                  similarity,
@@ -16,9 +15,7 @@ class Registration(object):
                  delta_phi_threshold=1.,
                  unit_threshold=0.1,
                  learning_rate=0.1,
-                 parallel=False,
                  n_jobs=1):
-        self.ndim = ndim
         self.n_step = n_step
         self.deformation = DiffeomorphicDeformation(
             n_step=n_step)
@@ -48,9 +45,7 @@ class Registration(object):
         self.delta_phi_threshold = delta_phi_threshold
         self.unit_threshold = unit_threshold
         self.learning_rate = learning_rate
-        self.parallel = parallel
-        if not parallel:
-            n_jobs = 1
+        assert isinstance(n_jobs, int)
         self.n_jobs = n_jobs
 
     def print_settings(self):
@@ -63,7 +58,6 @@ class Registration(object):
         print "threshold of displacement update", self.delta_phi_threshold
         print "threshold of grid unit", self.unit_threshold
         print "learning rate", self.learning_rate
-        print "parallel computation", self.parallel
         print "number of cpu cores", self.n_jobs
 
     def set_images(self, fixed, moving):

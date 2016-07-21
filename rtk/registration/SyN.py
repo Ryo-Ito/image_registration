@@ -42,6 +42,12 @@ class SyN(Registration):
         return inverse_mapping
 
     def update(self, fixed, moving):
+        if self.n_jobs != 1:
+            self.update_parallel(fixed, moving)
+        else:
+            self.update_sequential(fixed, moving)
+
+    def update_sequential(self, fixed, moving):
         for i in xrange(self.n_step_half + 1):
             j = -i - 1
 
@@ -159,15 +165,12 @@ class SyN(Registration):
             self.similarity.cost(fixed.data, moving.data))
 
         for i in xrange(max_iter):
-            if self.parallel:
-                self.update_parallel(fixed_images, moving_images)
-            else:
-                self.update(fixed_images, moving_images)
+            self.update(fixed_images, moving_images)
 
             if not self.check_injectivity():
                 break
 
-            if self.parallel:
+            if self.n_jobs != 1:
                 moving_images.apply_transforms_parallel(
                     self.deformation.forward_mappings, self.n_jobs)
                 fixed_images.apply_transforms_parallel(

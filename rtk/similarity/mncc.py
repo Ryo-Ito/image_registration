@@ -4,14 +4,14 @@ from rtk import gradient, sliding_matrix_product as smp
 
 class MNCC(object):
 
-    def __init__(self, penalty, matrix):
-        self.penalty = penalty
+    def __init__(self, variance, matrix):
+        self.variance = variance
         self.matrix = matrix
         self.index = int((len(matrix) - 1) / 2)
 
     def __str__(self):
         return ("Mahalanobis Normalized Cross Correlation"
-                + ", penalty=" + str(self.penalty)
+                + ", variance=" + str(self.variance)
                 + ", window_size" + str(len(self.matrix)))
 
     def cost(self, J, I):
@@ -66,4 +66,4 @@ class MNCC(object):
         IJoverII[np.where(II < 1e-3)] = 0
 
         return (2 * gradient(Ibar) * IJoverIIJJ
-                * (Jbar - Ibar * IJoverII) / self.penalty)
+                * (Jbar - Ibar * IJoverII) / self.variance)
