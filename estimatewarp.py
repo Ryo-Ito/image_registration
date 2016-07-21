@@ -1,4 +1,5 @@
 import argparse
+import numpy as np
 import rtk
 
 
@@ -18,7 +19,7 @@ fixed image file\n
                         """)
     parser.add_argument('-s', '--similarity_metric',
                         type=str,
-                        choices=['ssd', 'zncc', 'mncc'],
+                        choices=['ssd', 'zncc', 'mncc', 'kncc'],
                         default='ssd',
                         help="""
 similarity metric to evaluate how similar two images are.
@@ -26,6 +27,7 @@ Choose one of the following similarity metric
     ssd: Sum of Squared Difference
     zncc: zero means normalized cross correlation
     mncc: mahalanobis cosine similarity
+    kncc: kernel normalized cross correlation
 Default: ssd\n
                         """)
     parser.add_argument('--window_length',
@@ -39,6 +41,11 @@ Default: 5\n
                         type=str,
                         help="""
 file containing metric matrix for mncc
+                        """)
+    parser.add_argument('--convolution_kernel',
+                        type=str,
+                        help="""
+file containing convolution kernel for kncc
                         """)
     parser.add_argument('-t', '--transformation',
                         choices=['LDDMM', 'SyN'],
@@ -180,6 +187,18 @@ Default: 1
     fixed = rtk.image.ScalarImage(filename=args.fixed)
     moving = rtk.image.ScalarImage(filename=args.moving)
 
+    if args.similarity_metric == 'ssd':
+        similarity = rtk.similarity.SSD(args.penalty)
+    elif args.similarity_metric == 'zncc':
+        similarity = rtk.similarity.ZNCC(
+            args.penalty, args.window_length, args.window_length ** fixed.ndim)
+    elif args.similarity_metric == 'mncc':
+        similarity = rtk.similarity.MNCC(
+            args.penalty, np.load(args.metric_matrix))
+    elif args.similarity_metric == 'kncc':
+        similarity = rtk.similarity.KNCC(
+            args.penalty, np.load(args.convolution_kernel))
+
     if args.regularizer == 'biharmonic':
         regularizer = rtk.regularizer.BiharmonicRegularizer(
             args.convexity_penalty, args.norm_penalty)
@@ -194,9 +213,8 @@ Default: 1
     reg = Registration(
         ndim=fixed.ndim,
         n_step=args.deformation_step,
-        penalty=args.penalty,
         regularizer=regularizer,
-        similarity=args.similarity_metric,
+        similarity=similarity,
         n_iters=args.maximum_iterations,
         resolutions=args.resolution_level,
         smoothing_sigmas=args.smoothing_sigma,
@@ -205,6 +223,9 @@ Default: 1
         learning_rate=args.learning_rate,
         parallel=(args.n_jobs != 1),
         n_jobs=args.n_jobs)
+    print "fixed image:", args.fixed
+    print "moving image:", args.moving
+    reg.print_settings()
     reg.set_images(fixed, moving)
     warp = reg.execute()
     warp.save(filename=args.output)

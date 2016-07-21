@@ -11,11 +11,16 @@ class LDDMM(Registration):
         self.vector_fields = VectorFields(self.n_step, shape)
 
     def update(self, fixed, moving):
+        if self.n_jobs != 1:
+            self.update_parallel(fixed, moving)
+        else:
+            self.update_sequential(fixed, moving)
+
+    def update_sequential(self, fixed, moving):
         for i in xrange(self.n_step + 1):
             j = - i - 1
-            momentum = (self.derivative(fixed[j], moving[i])
-                        * self.deformation.backward_dets[j]
-                        / self.penalty)
+            momentum = (self.similarity.derivative(fixed[j], moving[i])
+                        * self.deformation.backward_dets[j])
             grad = 2 * self.vector_fields[i] + self.regularizer(momentum)
             delta = self.learning_rate * grad
             self.vector_fields.delta_vector_fields[i] = np.copy(delta)
@@ -27,11 +32,10 @@ class LDDMM(Registration):
             self.regularizer.set_operator(shape=fixed.shape)
         self.vector_fields.delta_vector_fields = np.array(
             Parallel(self.n_jobs)(
-                delayed(derivative)(self.derivative,
+                delayed(derivative)(self.similarity.derivative,
                                     fixed[-i - 1],
                                     moving[i],
                                     self.deformation.backward_dets[-i - 1],
-                                    self.penalty,
                                     self.vector_fields[i],
                                     self.regularizer,
                                     self.learning_rate)
@@ -75,18 +79,15 @@ class LDDMM(Registration):
         fixed_images = SequentialScalarImages(fixed, self.n_step + 1)
 
         print "iteration   0, Energy %f" % (
-            self.cost_function(fixed.data, moving.data))
+            self.similarity.cost(fixed.data, moving.data))
 
         for i in xrange(max_iter):
-            if self.parallel:
-                self.update_parallel(fixed_images, moving_images)
-            else:
-                self.update(fixed_images, moving_images)
+            self.update(fixed_images, moving_images)
 
             if not self.check_injectivity():
                 break
 
-            if self.parallel:
+            if self.n_jobs != 1:
                 moving_images.apply_transforms_parallel(
                     self.deformation.forward_mappings, self.n_jobs)
                 fixed_images.apply_transforms_parallel(
@@ -100,7 +101,7 @@ class LDDMM(Registration):
             max_delta_phi = self.delta_phi * (max_iter - i)
             print "iteration%4d, Energy %f" % (
                 i + 1,
-                self.cost_function(fixed_images[0], moving_images[-1]))
+                self.similarity.cost(fixed_images[0], moving_images[-1]))
             print 14 * ' ', "minimum unit", self.min_unit
             print 14 * ' ', "delta phi", self.delta_phi
             print 14 * ' ', "maximum delta phi", max_delta_phi
@@ -139,18 +140,15 @@ class LDDMM(Registration):
         fixed_images.apply_transforms(self.deformation.backward_mappings)
         moving_images.apply_transforms(self.deformation.forward_mappings)
         print "iteration   0, Energy %f" % (
-            self.cost_function(fixed_images[0], moving_images[-1]))
+            self.similarity.cost(fixed_images[0], moving_images[-1]))
 
         for i in xrange(max_iter):
-            if self.parallel:
-                self.update_parallel(fixed_images, moving_images)
-            else:
-                self.update(fixed_images, moving_images)
+            self.update(fixed_images, moving_images)
 
             if not self.check_injectivity():
                 break
 
-            if self.parallel:
+            if self.n_jobs != 1:
                 moving_images.apply_transforms_parallel(
                     self.deformation.forward_mappings, self.n_jobs)
                 fixed_images.apply_transforms_parallel(
@@ -164,7 +162,7 @@ class LDDMM(Registration):
             max_delta_phi = self.delta_phi * (max_iter - i)
             print "iteration%4d, Energy %f" % (
                 i + 1,
-                self.cost_function(fixed_images[0], moving_images[-1]))
+                self.similarity.cost(fixed_images[0], moving_images[-1]))
             print 14 * ' ', "minimum unit", self.min_unit
             print 14 * ' ', "delta phi", self.delta_phi
             print 14 * ' ', "maximum delta phi {0}".format(max_delta_phi)
@@ -180,12 +178,10 @@ def derivative(func,
                fixed,
                moving,
                Dphi,
-               penalty,
                vector_field,
                regularizer,
                learning_rate):
     momentum = (func(fixed, moving)
-                * Dphi
-                / penalty)
+                * Dphi)
     grad = 2 * vector_field + regularizer(momentum)
     return learning_rate * grad

@@ -68,7 +68,8 @@ class VectorFields(object):
             zoomed vector fields
         """
         if resolution == 1:
-            return VectorFields(self.n_step, vector_fields=np.copy(self.vector_fields))
+            return VectorFields(self.n_step,
+                                vector_fields=np.copy(self.vector_fields))
         ratio = [1, 1] + [1 / float(resolution)] * self.ndim
         data = zoom(self.vector_fields, ratio, order=order)
         return VectorFields(self.n_step, vector_fields=data)

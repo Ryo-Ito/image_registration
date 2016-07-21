@@ -91,20 +91,20 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=4] grad3d(double* func, int xlen, int yle
 
     return grad
 
-def uniform_filter(cnp.ndarray func, int length):
+def uniform_convolve(cnp.ndarray func, int length):
     if length % 2 == 0:
         raise ValueError('length must be odd number')
     r = (length - 1) / 2
     if func.ndim == 1:
-        return uniform_filter1d(<double*> func.data, func.shape[0], r)
+        return uniform_convolve1d(<double*> func.data, func.shape[0], r)
     elif func.ndim == 2:
-        return uniform_filter2d(<double*> func.data, func.shape[0], func.shape[1], r)
+        return uniform_convolve2d(<double*> func.data, func.shape[0], func.shape[1], r)
     elif func.ndim == 3:
-        return uniform_filter3d(<double*> func.data, func.shape[0], func.shape[1], func.shape[2], r)
+        return uniform_convolve3d(<double*> func.data, func.shape[0], func.shape[1], func.shape[2], r)
     else:
         raise ValueError('mismatch of the dimension sizes')
 
-cdef inline cnp.ndarray[DOUBLE_t, ndim=1] uniform_filter1d(double* func, int xlen, int r):
+cdef inline cnp.ndarray[DOUBLE_t, ndim=1] uniform_convolve1d(double* func, int xlen, int r):
     cdef cnp.ndarray[DOUBLE_t, ndim=1] convolved = np.zeros(xlen)
     cdef int x
     cdef double value
@@ -121,7 +121,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=1] uniform_filter1d(double* func, int xle
 
     return convolved
 
-cdef inline cnp.ndarray[DOUBLE_t, ndim=2] uniform_filter2d(double* func, int xlen, int ylen, int r):
+cdef inline cnp.ndarray[DOUBLE_t, ndim=2] uniform_convolve2d(double* func, int xlen, int ylen, int r):
     cdef cnp.ndarray[DOUBLE_t, ndim=2] convolved = np.zeros((xlen, ylen))
     cdef int x, y, i
     cdef double* temp = <double*>malloc(xlen * ylen * sizeof(double))
@@ -153,7 +153,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=2] uniform_filter2d(double* func, int xle
 
     return convolved
 
-cdef inline cnp.ndarray[DOUBLE_t, ndim=3] uniform_filter3d(double* func, int xlen, int ylen, int zlen, int r):
+cdef inline cnp.ndarray[DOUBLE_t, ndim=3] uniform_convolve3d(double* func, int xlen, int ylen, int zlen, int r):
     cdef cnp.ndarray[DOUBLE_t, ndim=3] convolved = np.zeros((xlen, ylen, zlen))
     cdef int x, y, z, i
     cdef double* temp1 = <double*>malloc(xlen * ylen * zlen * sizeof(double))
@@ -201,16 +201,16 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=3] uniform_filter3d(double* func, int xle
 
     return convolved
 
-def sliding_matrix_product(cnp.ndarray img, cnp.ndarray matrix):
+def sliding_matmul(cnp.ndarray img, cnp.ndarray matrix):
     assert(matrix.shape[0] == matrix.shape[1])
     if img.ndim == 2:
-        return sliding_matrix_product_2d(<double*> img.data, img.shape[0], img.shape[1], <double*> matrix.data, matrix.shape[0])
+        return sliding_matmul2d(<double*> img.data, img.shape[0], img.shape[1], <double*> matrix.data, matrix.shape[0])
     elif img.ndim == 3:
-        return sliding_matrix_product_3d(<double*> img.data, img.shape[0], img.shape[1], img.shape[2], <double*> matrix.data, matrix.shape[0])
+        return sliding_matmul3d(<double*> img.data, img.shape[0], img.shape[1], img.shape[2], <double*> matrix.data, matrix.shape[0])
     else:
         raise ValueError('the dimensionality of the input img has to be 2 or 3')
 
-cdef inline cnp.ndarray[DOUBLE_t, ndim=3] sliding_matrix_product_2d(double* img, int xlen, int ylen, double* matrix, int mat_len):
+cdef inline cnp.ndarray[DOUBLE_t, ndim=3] sliding_matmul2d(double* img, int xlen, int ylen, double* matrix, int mat_len):
 
     cdef int i, j, column_index, row_index, x, y
     cdef double c
@@ -237,7 +237,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=3] sliding_matrix_product_2d(double* img,
 
     return product
 
-cdef inline cnp.ndarray[DOUBLE_t, ndim=4] sliding_matrix_product_3d(double* img, int xlen, int ylen, int zlen, double* matrix, int mat_len):
+cdef inline cnp.ndarray[DOUBLE_t, ndim=4] sliding_matmul3d(double* img, int xlen, int ylen, int zlen, double* matrix, int mat_len):
 
     cdef int i, j, k, column_index, row_index, x, y, z
     cdef double c

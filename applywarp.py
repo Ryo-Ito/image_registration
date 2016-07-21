@@ -49,9 +49,12 @@ output file name\n
                         """)
     parser.add_argument('--order',
                         type=int,
+                        default=1,
                         help="""
 order of interpolation\n
                         """)
 
     args = parser.parse_args()
+    print "warp to apply:", args.transformation
+    print "apply warp to this image:", args.input
     apply_warp(args.input, args.transformation, args.output, args.order)
