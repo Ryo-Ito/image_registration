@@ -104,6 +104,13 @@ Default: 1.\n
 penalty coefficient for norm of vector
 Default: 1.\n
                         """)
+    parser.add_argument('--vector_smooth',
+                        default=1.,
+                        type=float,
+                        help="""
+gaussian smoothing of vector fields
+Default: 1.\n
+                        """)
     parser.add_argument('--delta_phi_threshold',
                         default=1.,
                         type=float,
@@ -226,7 +233,7 @@ Default: 1
     reg.print_settings()
     reg.set_images(fixed, moving)
     warp = reg.execute()
-    warp.save(filename=args.output)
+    warp.save(filename=args.output, affine=fixed.get_affine())
 
 if __name__ == '__main__':
     main()
