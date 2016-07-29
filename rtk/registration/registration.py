@@ -1,6 +1,6 @@
 import numpy as np
 import rtk
-from rtk.deformation import DiffeomorphicDeformation
+from rtk.grid import DiffeomorphicDeformation
 
 
 class Registration(object):

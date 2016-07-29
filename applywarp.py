@@ -16,15 +16,15 @@ def apply_warp(moving_img_file,
     fixed_img_file : str
         file name of reference image
     transformation_file : str
-        file name of transformation applying
+        file name of transformation to apply
     output_img_file : str
         file name of warped input image
     order : int
         order of interpolation
     """
-    moving_img = rtk.image.ScalarImage(filename=moving_img_file)
-    fixed_img = rtk.image.ScalarImage(filename=fixed_img_file)
-    transform = rtk.deformation.Deformation(filename=transformation_file)
+    moving_img = rtk.load(filename=moving_img_file, dtype='scalarimage')
+    fixed_img = rtk.load(filename=fixed_img_file, dtype='scalarimage')
+    transform = rtk.load(filename=transformation_file, dtype='deformation')
 
     warped_img = moving_img.apply_transform(transform, order=order)
     warped_img.affine = fixed_img.get_affine()

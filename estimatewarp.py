@@ -191,8 +191,8 @@ Default: 1
         if args.smoothing_sigma is None:
             args.smoothing_sigma = [2, 1, 1]
 
-    fixed = rtk.image.ScalarImage(filename=args.fixed)
-    moving = rtk.image.ScalarImage(filename=args.moving)
+    fixed = rtk.load(filename=args.fixed, dtype='scalarimage')
+    moving = rtk.load(filename=args.moving, dtype='scalarimage')
 
     if args.similarity_metric == 'ssd':
         similarity = rtk.similarity.SSD(args.penalty)
@@ -234,7 +234,8 @@ Default: 1
     reg.print_settings()
     reg.set_images(fixed, moving)
     warp = reg.execute()
-    warp.save(filename=args.output, affine=fixed.get_affine())
+    rtk.save(warp, filename=args.output, affine=fixed.get_affine())
+
 
 if __name__ == '__main__':
     main()

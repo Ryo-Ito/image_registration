@@ -7,7 +7,7 @@ try:
 except ImportError:
     print "no pyfftw package, going to use fft from scipy"
     from scipy.fftpack import fftn, ifftn
-from rtk import identity_mapping
+from rtk.grid import identity_mapping
 
 
 class BiharmonicRegularizer(object):

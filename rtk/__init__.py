@@ -1,19 +1,19 @@
-from misc import identity_mapping, jacobian_matrix, determinant
 from imageprocessing import (gradient, uniform_convolve,
                              interpolate_mapping, sliding_matmul)
-import deformation
+import grid
 import image
 import registration
 import regularizer
 import similarity
-__all__ = ["identity_mapping",
-           "jacobian_matrix",
-           "determinant",
+from utils import load, show, save
+__all__ = ["load",
+           "show",
+           "save",
            "gradient",
            "uniform_convolve",
            "interpolate_mapping",
            "sliding_matmul",
-           "deformation",
+           "grid",
            "image",
            "registration",
            "regularizer",

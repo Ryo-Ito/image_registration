@@ -1,5 +1,5 @@
 import numpy as np
-import rtk
+from utils import identity_mapping, jacobian_matrix, determinant
 
 
 class DiffeomorphicDeformation(object):
@@ -18,7 +18,7 @@ class DiffeomorphicDeformation(object):
         self.init_mappings()
 
     def init_mappings(self):
-        self.initial_grid = rtk.identity_mapping(self.shape)
+        self.initial_grid = identity_mapping(self.shape)
         self.forward_mappings = np.ones(
             (self.n_step + 1, self.ndim) + self.shape) * self.initial_grid
         self.backward_mappings = np.copy(self.forward_mappings)
@@ -30,15 +30,15 @@ class DiffeomorphicDeformation(object):
         self.backward_dets = np.ones(
             (self.n_step + 1,) + self.shape)
 
-    def euler_integration(self, grid, jacobian_matrix, vector_fields):
+    def euler_integration(self, grid, J, vector_fields):
         return grid - np.einsum('ij...,j...->i...',
-                                jacobian_matrix,
+                                J,
                                 vector_fields) * self.delta_time
 
     def update_mappings(self, vector_fields):
         assert len(vector_fields) == self.n_step
 
-        forward_jacobian_matrix = rtk.jacobian_matrix(self.initial_grid)
+        forward_jacobian_matrix = jacobian_matrix(self.initial_grid)
         backward_jacobian_matrix = np.copy(forward_jacobian_matrix)
 
         for i in xrange(self.n_step):
@@ -51,12 +51,12 @@ class DiffeomorphicDeformation(object):
                 backward_jacobian_matrix,
                 -vector_fields[-i - 1])
 
-            forward_jacobian_matrix = rtk.jacobian_matrix(
+            forward_jacobian_matrix = jacobian_matrix(
                 self.forward_mappings[i + 1])
-            backward_jacobian_matrix = rtk.jacobian_matrix(
+            backward_jacobian_matrix = jacobian_matrix(
                 self.backward_mappings[i + 1])
 
-            self.forward_dets[i + 1] = rtk.determinant(
+            self.forward_dets[i + 1] = determinant(
                 forward_jacobian_matrix)
-            self.backward_dets[i + 1] = rtk.determinant(
+            self.backward_dets[i + 1] = determinant(
                 backward_jacobian_matrix)

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.ndimage.interpolation import map_coordinates
 import nibabel as nib
-from rtk import identity_mapping
+from utils import identity_mapping
 
 
 class Deformation(object):

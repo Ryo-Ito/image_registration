@@ -1,7 +1,7 @@
 import numpy as np
 from joblib import Parallel, delayed
 from registration import Registration
-from rtk.deformation import Deformation, VectorFields
+from rtk.grid import Deformation, VectorFields
 from rtk.image import SequentialScalarImages
 
 

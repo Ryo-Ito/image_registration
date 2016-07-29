@@ -1,8 +1,8 @@
 import numpy as np
 from joblib import Parallel, delayed
 from registration import Registration
-from rtk import identity_mapping, jacobian_matrix
-from rtk.deformation import Deformation, VectorFields
+from rtk.grid import (identity_mapping, jacobian_matrix,
+                      Deformation, VectorFields)
 from rtk.image import SequentialScalarImages
 
 
