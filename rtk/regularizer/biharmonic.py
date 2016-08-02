@@ -47,3 +47,10 @@ class BiharmonicRegularizer(object):
         else:
             self.set_operator(momentum.shape[1:])
             return self.__call__(momentum)
+
+if __name__ == '__main__':
+    A = np.zeros((2, 11, 11))
+    A[:, 5, 5] = 1.
+    r = BiharmonicRegularizer()
+    r.set_operator([11, 11])
+    print r(A)
