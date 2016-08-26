@@ -19,7 +19,7 @@ fixed image file\n
                         """)
     parser.add_argument('-s', '--similarity_metric',
                         type=str,
-                        choices=['ssd', 'zncc', 'mncc', 'kncc'],
+                        choices=['ssd', 'zncc', 'mncc', 'kncc', 'gncc'],
                         default='ssd',
                         help="""
 similarity metric to evaluate how similar two images are.
@@ -28,6 +28,7 @@ Choose one of the following similarity metric
     zncc: zero means normalized cross correlation
     mncc: mahalanobis cosine similarity
     kncc: kernel normalized cross correlation
+    gncc: gaussian normalized cross correlation
 Default: ssd\n
                         """)
     parser.add_argument('--window_length',
@@ -40,12 +41,19 @@ Default: 5\n
     parser.add_argument('--metric_matrix',
                         type=str,
                         help="""
-file containing metric matrix for mncc
+file containing metric matrix for mncc\n
                         """)
     parser.add_argument('--convolution_kernel',
                         type=str,
                         help="""
-file containing convolution kernel for kncc
+file containing convolution kernel for kncc\n
+                        """)
+    parser.add_argument('--filter_sigma',
+                        type=float,
+                        default=1.,
+                        help="""
+standard deviation of gaussian function for gncc
+Default: 1.\n
                         """)
     parser.add_argument('-t', '--transformation',
                         choices=['LDDMM', 'SyN'],
@@ -190,6 +198,13 @@ Default: 1
             args.learning_rate = 0.01
         if args.smoothing_sigma is None:
             args.smoothing_sigma = [2, 1, 1]
+    elif args.similarity_metric == 'gncc':
+        if args.penalty is None:
+            args.penalty = 0.01
+        if args.learning_rate is None:
+            args.learning_rate = 0.01
+        if args.smoothing_sigma is None:
+            args.smoothing_sigma = [2, 1, 1]
 
     fixed = rtk.load(filename=args.fixed, dtype='scalarimage')
     moving = rtk.load(filename=args.moving, dtype='scalarimage')
@@ -205,6 +220,9 @@ Default: 1
     elif args.similarity_metric == 'kncc':
         similarity = rtk.similarity.KNCC(
             args.penalty, np.load(args.convolution_kernel))
+    elif args.similarity_metric == 'gncc':
+        similarity = rtk.similarity.GNCC(
+            args.penalty, args.filter_sigma)
 
     if args.regularizer == 'biharmonic':
         regularizer = rtk.regularizer.BiharmonicRegularizer(
