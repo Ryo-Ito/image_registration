@@ -15,45 +15,39 @@ class KNCC(object):
     """
 
     def __init__(self, variance, kernel):
+        assert np.allclose(np.sum(kernel), 1.)
         self.variance = variance
         self.kernel = kernel
-        self.kernel_size = kernel.size
 
     def __str__(self):
         return ("Kernel Normalized Cross Correlation"
                 + ", variance=" + str(self.variance)
-                + ", kernel_size=" + str(self.kernel_size))
+                + ", kernel_size=" + str(self.kernel.size))
 
     def cost(self, J, I):
         return np.sum(self.local_cost(J, I))
 
     def local_cost(self, J, I):
-        Im = correlate(I, self.kernel, mode='constant') / self.kernel_size
-        Jm = correlate(J, self.kernel, mode='constant') / self.kernel_size
-        II = (correlate(I * I, self.kernel, mode='constant')
-              - self.kernel_size * Im * Im)
-        JJ = (correlate(J * J, self.kernel, mode='constant')
-              - self.kernel_size * Jm * Jm)
-        IJ = (correlate(I * J, self.kernel, mode='constant')
-              - self.kernel_size * Im * Jm)
+        Im = correlate(I, self.kernel, mode='constant')
+        Jm = correlate(J, self.kernel, mode='constant')
+        II = correlate(I * I, self.kernel, mode='constant') - Im ** 2
+        JJ = correlate(J * J, self.kernel, mode='constant') - Jm ** 2
+        IJ = correlate(I * J, self.kernel, mode='constant') - Im * Jm
 
         cost = -(IJ ** 2) / (II * JJ)
         cost[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
         return cost
 
     def derivative(self, J, I):
-        Im = correlate(I, self.kernel, mode='constant') / self.kernel_size
-        Jm = correlate(J, self.kernel, mode='constant') / self.kernel_size
+        Im = correlate(I, self.kernel, mode='constant')
+        Jm = correlate(J, self.kernel, mode='constant')
 
         Ibar = I - Im
         Jbar = J - Jm
 
-        II = (correlate(I * I, self.kernel, mode='constant')
-              - self.kernel_size * Im * Im)
-        JJ = (correlate(J * J, self.kernel, mode='constant')
-              - self.kernel_size * Jm * Jm)
-        IJ = (correlate(I * J, self.kernel, mode='constant')
-              - self.kernel_size * Im * Jm)
+        II = correlate(I * I, self.kernel, mode='constant') - Im ** 2
+        JJ = correlate(J * J, self.kernel, mode='constant') - Jm ** 2
+        IJ = correlate(I * J, self.kernel, mode='constant') - Im * Jm
 
         denom = II * JJ
         IJoverIIJJ = IJ / denom
