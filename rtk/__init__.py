@@ -5,8 +5,10 @@ import image
 import registration
 import regularizer
 import similarity
-from utils import load, show, save
-__all__ = ["load",
+from utils import load_img, load_warp, transform, show, save
+__all__ = ["load_img",
+           "load_warp",
+           "transform",
            "show",
            "save",
            "gradient",
