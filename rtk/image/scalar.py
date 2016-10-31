@@ -67,7 +67,7 @@ class ScalarImage(Image):
 
         Parameters
         ----------
-        deformation : deformation
+        deformation : Deformation
             deformation applying to this image
         order : int
             order of interpolation
