@@ -2,7 +2,7 @@ from grid import Deformation
 from image import ScalarImage
 
 
-def load(filename, dtype='scalarimage'):
+def load_img(filename, dtype='scalarimage'):
     """
     load image in the file
 
@@ -12,23 +12,48 @@ def load(filename, dtype='scalarimage'):
         name of the file
     dtype : str
         name of the data type of file
-        ['scalarimage', 'deformation']
+        ['scalarimage']
 
     Returns
     -------
     img : rtk.image.ScalarImage
         loaded image
     """
-    all_dtypes = ['scalarimage', 'deformation']
+    all_dtypes = ['scalarimage']
     if dtype not in all_dtypes:
         raise ValueError, "type must be one of", all_dtypes
 
     if dtype == 'scalarimage':
         return ScalarImage(filename=filename)
-    elif dtype == 'deformation':
-        return Deformation(filename=filename)
     else:
         return None
+
+
+def load_warp(filename):
+    """
+    load deformation field in the file
+
+    Parameters
+    ----------
+    filename : str
+        name of the file containing deformation field
+
+    Returns
+    -------
+    deformation : rtk.grid.Deformation
+        load deformation field
+    """
+    return Deformation(filename=filename)
+
+
+def transform(img, warp):
+    if not hasattr(img, "apply_transform"):
+        raise NotImplementedError
+    else:
+        if type(warp) == Deformation:
+            return img.apply_transform(warp)
+        else:
+            return img.apply_transform(Deformation(grid=warp))
 
 
 def show(obj, **args):

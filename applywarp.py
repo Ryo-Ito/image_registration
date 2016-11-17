@@ -22,9 +22,9 @@ def apply_warp(moving_img_file,
     order : int
         order of interpolation
     """
-    moving_img = rtk.load(filename=moving_img_file, dtype='scalarimage')
-    fixed_img = rtk.load(filename=fixed_img_file, dtype='scalarimage')
-    transform = rtk.load(filename=transformation_file, dtype='deformation')
+    moving_img = rtk.load_img(filename=moving_img_file, dtype='scalarimage')
+    fixed_img = rtk.load_img(filename=fixed_img_file, dtype='scalarimage')
+    transform = rtk.load_warp(filename=transformation_file, dtype='deformation')
 
     warped_img = moving_img.apply_transform(transform, order=order)
     warped_img.affine = fixed_img.get_affine()
