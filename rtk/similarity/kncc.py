@@ -10,7 +10,9 @@ class KNCC(object):
     kernel normalized cross correlation
     similairty = <I,J>^2 / (<I,I> * <J,J>)
     <I,J> = sum{G*(I - Im)(J - Jm)}
-    Im = mean(G*I)
+          = sum{G*(I * J) - G*(I)*Jm - G*(J)*Im + Im * Jm}
+          = sum{G*(I * J)} - Im * Jm
+    Im = sum(G*I)
     G is a general convolution kernel
     """
 
