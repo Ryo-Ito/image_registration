@@ -1,4 +1,4 @@
-from imageprocessing import (gradient, uniform_convolve,
+from imageprocessing import (gradient, uniform_convolve, uniform_filter,
                              interpolate_mapping, sliding_matmul)
 import grid
 import image
@@ -11,6 +11,7 @@ __all__ = ["load",
            "save",
            "gradient",
            "uniform_convolve",
+           "uniform_filter",
            "interpolate_mapping",
            "sliding_matmul",
            "grid",

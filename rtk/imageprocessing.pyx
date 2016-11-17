@@ -2,8 +2,10 @@ import numpy as np
 cimport numpy as cnp
 from libc.math cimport ceil, floor, round
 from libc.stdlib cimport malloc, free
- 
+
+
 ctypedef cnp.float64_t DOUBLE_t
+
 
 def gradient(cnp.ndarray func):
     cdef int n = func.ndim
@@ -15,6 +17,7 @@ def gradient(cnp.ndarray func):
         return grad3d(<double*> func.data, func.shape[0], func.shape[1], func.shape[2])
     else:
         raise ValueError('dimension of the input has to be 2 or 3')
+
 
 cdef inline cnp.ndarray[DOUBLE_t, ndim=1] grad1d(double* func, int xlen):
     cdef cnp.ndarray[DOUBLE_t, ndim=1] grad
@@ -32,6 +35,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=1] grad1d(double* func, int xlen):
             grad[x] = 0.5 * (func[x+1] - func[x-1])
 
     return grad
+
 
 cdef inline cnp.ndarray[DOUBLE_t, ndim=3] grad2d(double* func, int xlen, int ylen):
     cdef cnp.ndarray[DOUBLE_t, ndim=3] grad
@@ -57,6 +61,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=3] grad2d(double* func, int xlen, int yle
                 grad[1,x,y] = 0.5 * (func[x * ylen + y+1] - func[x * ylen + y-1])
 
     return grad
+
 
 cdef inline cnp.ndarray[DOUBLE_t, ndim=4] grad3d(double* func, int xlen, int ylen, int zlen):
     cdef cnp.ndarray[DOUBLE_t, ndim=4] grad
@@ -91,6 +96,122 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=4] grad3d(double* func, int xlen, int yle
 
     return grad
 
+
+
+def uniform_filter(cnp.ndarray array, int length):
+    if length % 2 == 0:
+        raise ValueError('length must be odd number')
+    r = (length - 1) / 2
+    if array.ndim == 1:
+        return uniform_filter1d(<double*> array.data, array.shape[0], r)
+    elif array.ndim == 2:
+        return uniform_filter2d(<double*> array.data, array.shape[0], array.shape[1], r)
+    elif array.ndim == 3:
+        return uniform_filter3d(<double*> array.data, array.shape[0], array.shape[1], array.shape[2], r)
+    else:
+        raise ValueError('mismatch of the dimension size')
+
+
+cdef inline cnp.ndarray[DOUBLE_t, ndim=1] uniform_filter1d(double* func, int xlen, int r):
+    cdef cnp.ndarray[DOUBLE_t, ndim=1] convolved = np.zeros(xlen)
+    cdef int x
+    cdef double value
+
+    value = 0.
+    for x in range(r):
+        value += func[x]
+    for x in range(xlen):
+        if x > r:
+            value -= func[x - r - 1]
+        if x + r < xlen:
+            value += func[x + r]
+        convolved[x] = value / (2 * r + 1)
+
+    return convolved
+
+
+cdef inline cnp.ndarray[DOUBLE_t, ndim=2] uniform_filter2d(double* func, int xlen, int ylen, int r):
+    cdef cnp.ndarray[DOUBLE_t, ndim=2] convolved = np.zeros((xlen, ylen))
+    cdef int x, y, i
+    cdef double* temp = <double*>malloc(xlen * ylen * sizeof(double))
+    cdef double value
+
+    for x in range(xlen):
+        value = 0.
+        for i in range(r):
+            value += func[x * ylen + i]
+        for y in range(ylen):
+            if y > r:
+                value -= func[x * ylen + y - r - 1]
+            if y + r < ylen:
+                value += func[x * ylen + y + r]
+            temp[x * ylen + y] = value
+
+    for y in range(ylen):
+        value = 0.
+        for i in range(r):
+            value += temp[i * ylen + y]
+        for x in range(xlen):
+            if x > r:
+                value -= temp[(x - r - 1) * ylen + y]
+            if x + r < xlen:
+                value += temp[(x + r) * ylen + y]
+            convolved[x,y] = value / (2 * r + 1) ** 2
+
+    free(temp)
+
+    return convolved
+
+
+cdef inline cnp.ndarray[DOUBLE_t, ndim=3] uniform_filter3d(double* func, int xlen, int ylen, int zlen, int r):
+    cdef cnp.ndarray[DOUBLE_t, ndim=3] convolved = np.zeros((xlen, ylen, zlen))
+    cdef int x, y, z, i
+    cdef double* temp1 = <double*>malloc(xlen * ylen * zlen * sizeof(double))
+    cdef double* temp2 = <double*>malloc(xlen * ylen * zlen * sizeof(double))
+    cdef double value
+
+    for x in range(xlen):
+        for y in range(ylen):
+            value = 0.
+            for i in range(r):
+                value += func[(x * ylen + y) * zlen + i]
+            for z in range(zlen):
+                if z > r:
+                    value -= func[(x * ylen + y) * zlen + z - r - 1]
+                if z + r < zlen:
+                    value += func[(x * ylen + y) * zlen + z + r]
+                temp1[(x * ylen + y) * zlen + z] = value
+
+    for x in range(xlen):
+        for z in range(zlen):
+            value = 0.
+            for i in range(r):
+                value += temp1[(x * ylen + i) * zlen + z]
+            for y in range(ylen):
+                if y > r:
+                    value -= temp1[(x * ylen + y - r - 1) * zlen + z]
+                if y + r < ylen:
+                    value += temp1[(x * ylen + y + r) * zlen + z]
+                temp2[(x * ylen + y) * zlen + z] = value
+
+    for y in range(ylen):
+        for z in range(zlen):
+            value = 0.
+            for i in range(r):
+                value += temp2[(i * ylen + y) * zlen + z]
+            for x in range(xlen):
+                if x > r:
+                    value -= temp2[((x - r - 1) * ylen + y) * zlen + z]
+                if x + r < xlen:
+                    value += temp2[((x + r) * ylen + y) * zlen + z]
+                convolved[x,y,z] = value / (2 * r + 1) ** 3
+
+    free(temp1)
+    free(temp2)
+
+    return convolved
+
+
 def uniform_convolve(cnp.ndarray func, int length):
     if length % 2 == 0:
         raise ValueError('length must be odd number')
@@ -103,6 +224,7 @@ def uniform_convolve(cnp.ndarray func, int length):
         return uniform_convolve3d(<double*> func.data, func.shape[0], func.shape[1], func.shape[2], r)
     else:
         raise ValueError('mismatch of the dimension sizes')
+
 
 cdef inline cnp.ndarray[DOUBLE_t, ndim=1] uniform_convolve1d(double* func, int xlen, int r):
     cdef cnp.ndarray[DOUBLE_t, ndim=1] convolved = np.zeros(xlen)
@@ -120,6 +242,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=1] uniform_convolve1d(double* func, int x
         convolved[x] = value
 
     return convolved
+
 
 cdef inline cnp.ndarray[DOUBLE_t, ndim=2] uniform_convolve2d(double* func, int xlen, int ylen, int r):
     cdef cnp.ndarray[DOUBLE_t, ndim=2] convolved = np.zeros((xlen, ylen))
@@ -152,6 +275,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=2] uniform_convolve2d(double* func, int x
     free(temp)
 
     return convolved
+
 
 cdef inline cnp.ndarray[DOUBLE_t, ndim=3] uniform_convolve3d(double* func, int xlen, int ylen, int zlen, int r):
     cdef cnp.ndarray[DOUBLE_t, ndim=3] convolved = np.zeros((xlen, ylen, zlen))
@@ -201,6 +325,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=3] uniform_convolve3d(double* func, int x
 
     return convolved
 
+
 def sliding_matmul(cnp.ndarray img, cnp.ndarray matrix):
     assert(matrix.shape[0] == matrix.shape[1])
     if img.ndim == 2:
@@ -209,6 +334,7 @@ def sliding_matmul(cnp.ndarray img, cnp.ndarray matrix):
         return sliding_matmul3d(<double*> img.data, img.shape[0], img.shape[1], img.shape[2], <double*> matrix.data, matrix.shape[0])
     else:
         raise ValueError('the dimensionality of the input img has to be 2 or 3')
+
 
 cdef inline cnp.ndarray[DOUBLE_t, ndim=3] sliding_matmul2d(double* img, int xlen, int ylen, double* matrix, int mat_len):
 
@@ -236,6 +362,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=3] sliding_matmul2d(double* img, int xlen
                 product[x,y,column_index] = c
 
     return product
+
 
 cdef inline cnp.ndarray[DOUBLE_t, ndim=4] sliding_matmul3d(double* img, int xlen, int ylen, int zlen, double* matrix, int mat_len):
 
@@ -266,6 +393,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=4] sliding_matmul3d(double* img, int xlen
 
     return product
 
+
 def interpolate_mapping(cnp.ndarray func, int[:] target_shape):
     if func.ndim == 2:
         return interpolate2d(<double*> func.data, func.shape[0], func.shape[1], target_shape)
@@ -273,6 +401,7 @@ def interpolate_mapping(cnp.ndarray func, int[:] target_shape):
         return interpolate3d(<double*> func.data, func.shape[0], func.shape[1], func.shape[2], target_shape)
     else:
         raise ValueError('mismatch of the dimension size')
+
 
 cdef inline cnp.ndarray[DOUBLE_t, ndim=2] interpolate2d(double* func, int xlen_now, int ylen_now, int[:] target_shape):
     cdef int xlen_target = target_shape[0]
@@ -290,6 +419,7 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=2] interpolate2d(double* func, int xlen_n
             interpolated[x,y] = bilinear_interpolation(func, xi, yi, xlen_now, ylen_now)
 
     return interpolated
+
 
 cdef inline double bilinear_interpolation(double* func, double x, double y, int xlen, int ylen):
     """
@@ -322,6 +452,7 @@ cdef inline double bilinear_interpolation(double* func, double x, double y, int 
 
     return (1 - dx) * f0 + dx * f1
 
+
 cdef inline double getValue2d(double* func, int x, int y, int xlen, int ylen, char mode='N'):
 
     if mode == 'N':
@@ -339,6 +470,7 @@ cdef inline double getValue2d(double* func, int x, int y, int xlen, int ylen, ch
             return 0
 
     return func[x * ylen + y]
+
 
 cdef inline cnp.ndarray[DOUBLE_t, ndim=3] interpolate3d(double* func, int xlen_now, int ylen_now, int zlen_now, int[:] target_shape):
     cdef int xlen_target = target_shape[0]
@@ -359,7 +491,8 @@ cdef inline cnp.ndarray[DOUBLE_t, ndim=3] interpolate3d(double* func, int xlen_n
                 interpolated[x,y,z] = trilinear_interpolation(func, xi, yi, zi, xlen_now, ylen_now, zlen_now)
 
     return interpolated
-    
+
+
 cdef inline double trilinear_interpolation(double* func, double x, double y, double z, int xlen, int ylen, int zlen):
     """
     trilinear interpolation at a given position in the function.
@@ -399,6 +532,7 @@ cdef inline double trilinear_interpolation(double* func, double x, double y, dou
     value += dx * dy * dz * getValue3d(func, x1, y1, z1, xlen, ylen, zlen, 'N')
 
     return value
+
 
 cdef inline double getValue3d(double* func, int x, int y, int z, int xlen, int ylen, int zlen, char mode='N'):
     # if -1 < x < xlen and -1 < y < ylen and -1 < z < zlen:
