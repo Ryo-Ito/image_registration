@@ -1,15 +1,23 @@
 import numpy as np
-from rtk import uniform_convolve, gradient
+from rtk import gradient, uniform_filter
 
 np.seterr(all='ignore')
 
 
 class ZNCC(object):
-
-    def __init__(self, variance, window_length, window_size):
+    """
+    Zero means Normalized Cross Correlation
+    similairty = <I,J>^2 / (<I,I> * <J,J>)
+    <I,J> = sum{G*(I - Im)(J - Jm)}
+          = sum{G*(I * J) - G*(I)*Jm - G*(J)*Im + Im * Jm}
+          = sum{G*(I * J)} - Im * Jm
+    Im = sum(G*I)
+    G is a uniform convolution kernel
+    """
+    def __init__(self, variance, window_length):
         self.variance = variance
         self.window_length = window_length
-        self.window_size = window_size
+        # self.window_size = window_size
 
     def __str__(self):
         return ("Zero-means Normalized Cross Correlation, panalty="
@@ -21,14 +29,11 @@ class ZNCC(object):
         return np.sum(self.local_cost(J, I))
 
     def local_cost(self, J, I):
-        Im = uniform_convolve(I, self.window_length) / self.window_size
-        Jm = uniform_convolve(J, self.window_length) / self.window_size
-        II = (uniform_convolve(I * I, self.window_length)
-              - self.window_size * Im * Im)
-        JJ = (uniform_convolve(J * J, self.window_length)
-              - self.window_size * Jm * Jm)
-        IJ = (uniform_convolve(I * J, self.window_length)
-              - self.window_size * Im * Jm)
+        Im = uniform_filter(I, self.window_length)
+        Jm = uniform_filter(J, self.window_length)
+        II = uniform_filter(I * I, self.window_length) - Im * Im
+        JJ = uniform_filter(J * J, self.window_length) - Jm * Jm
+        IJ = uniform_filter(I * J, self.window_length) - Im * Jm
         cost = -(IJ ** 2) / (II * JJ)
         cost[np.where((II < 1e-5) + (JJ < 1e-5))] = 0
         return cost
@@ -51,18 +56,15 @@ class ZNCC(object):
             momentum field.
             eg. 3d case (dimension, len(x), len(y), len(z))
         """
-        Im = uniform_convolve(I, self.window_length) / self.window_size
-        Jm = uniform_convolve(J, self.window_length) / self.window_size
+        Im = uniform_filter(I, self.window_length)
+        Jm = uniform_filter(J, self.window_length)
 
         Ibar = I - Im
         Jbar = J - Jm
 
-        II = (uniform_convolve(I * I, self.window_length)
-              - self.window_size * Im * Im)
-        JJ = (uniform_convolve(J * J, self.window_length)
-              - self.window_size * Jm * Jm)
-        IJ = (uniform_convolve(I * J, self.window_length)
-              - self.window_size * Im * Jm)
+        II = uniform_filter(I * I, self.window_length) - Im * Im
+        JJ = uniform_filter(J * J, self.window_length) - Jm * Jm
+        IJ = uniform_filter(I * J, self.window_length) - Im * Jm
 
         denom = II * JJ
         IJoverIIJJ = IJ / denom
