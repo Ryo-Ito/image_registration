@@ -213,7 +213,7 @@ Default: 1
         similarity = rtk.similarity.SSD(args.penalty)
     elif args.similarity_metric == 'zncc':
         similarity = rtk.similarity.ZNCC(
-            args.penalty, args.window_length, args.window_length ** fixed.ndim)
+            args.penalty, args.window_length)
     elif args.similarity_metric == 'mncc':
         similarity = rtk.similarity.MNCC(
             args.penalty, np.load(args.metric_matrix))
