@@ -206,8 +206,8 @@ Default: 1
         if args.smoothing_sigma is None:
             args.smoothing_sigma = [2, 1, 1]
 
-    fixed = rtk.load(filename=args.fixed, dtype='scalarimage')
-    moving = rtk.load(filename=args.moving, dtype='scalarimage')
+    fixed = rtk.load_img(filename=args.fixed, dtype='scalarimage')
+    moving = rtk.load_img(filename=args.moving, dtype='scalarimage')
 
     if args.similarity_metric == 'ssd':
         similarity = rtk.similarity.SSD(args.penalty)
