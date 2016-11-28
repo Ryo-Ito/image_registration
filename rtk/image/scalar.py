@@ -81,10 +81,22 @@ class ScalarImage(Image):
         warped_img = ScalarImage(data=warped_data, affine=self.affine)
         return warped_img
 
-    def show(self, show_axis=False, **kwargs):
+    def show(self, x=None, y=None, z=None, show_axis=False, **kwargs):
         import matplotlib.pyplot as plt
         if self.ndim == 2:
             if show_axis is False:
                 plt.axis('off')
             plt.imshow(self.data, cmap='gray', **kwargs)
+            plt.show()
+        if self.ndim == 3:
+            if show_axis is False:
+                plt.axis("off")
+            if x is not None:
+                plt.imshow(self.data[x, :, :], cmap="gray", **kwargs)
+            elif y is not None:
+                plt.imshow(self.data[:, y, :], cmap='gray', **kwargs)
+            elif z is not None:
+                plt.imshow(self.data[:, :, z], cmap="gray", **kwargs)
+            else:
+                raise ValueError("x, y, or z has to be not None")
             plt.show()
