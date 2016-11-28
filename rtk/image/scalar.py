@@ -86,5 +86,5 @@ class ScalarImage(Image):
         if self.ndim == 2:
             if show_axis is False:
                 plt.axis('off')
-            plt.imshow(self.data, cmap='gray', kwargs)
+            plt.imshow(self.data, cmap='gray', **kwargs)
             plt.show()
