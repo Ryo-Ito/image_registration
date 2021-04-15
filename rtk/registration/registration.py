@@ -49,16 +49,16 @@ class Registration(object):
         self.n_jobs = n_jobs
 
     def print_settings(self):
-        print self.__class__.__name__
-        print self.similarity
-        print "regularization", self.regularizer.__class__.__name__
-        print "iterations", self.n_iters
-        print "resolutions", self.resolutions
-        print "smoothing sigmas", self.smoothing_sigmas
-        print "threshold of displacement update", self.delta_phi_threshold
-        print "threshold of grid unit", self.unit_threshold
-        print "learning rate", self.learning_rate
-        print "number of cpu cores", self.n_jobs
+        print(self.__class__.__name__)
+        print(self.similarity)
+        print("regularization", self.regularizer.__class__.__name__)
+        print("iterations", self.n_iters)
+        print("resolutions", self.resolutions)
+        print("smoothing sigmas", self.smoothing_sigmas)
+        print("threshold of displacement update", self.delta_phi_threshold)
+        print("threshold of grid unit", self.unit_threshold)
+        print("learning rate", self.learning_rate)
+        print("number of cpu cores", self.n_jobs)
 
     def set_images(self, fixed, moving):
         assert fixed.ndim == moving.ndim
@@ -74,7 +74,7 @@ class Registration(object):
         shape = grid.shape[1:]
         if resolution != 1:
             interpolated_grid = np.zeros((self.ndim,) + self.shape)
-            for i in xrange(self.ndim):
+            for i in range(self.ndim):
                 interpolated_grid[i] = rtk.interpolate_mapping(
                     grid[i], np.array(self.shape, dtype=np.int32)
                 ) * (self.shape[i] - 1) / (shape[i] - 1)
@@ -88,6 +88,5 @@ class Registration(object):
         if self.min_unit < self.unit_threshold:
             self.vector_fields.back_to_previous()
             self.integrate_vector_fields()
-            print "reached limit of jacobian determinant %f < %f" % (
-                self.min_unit, self.unit_threshold)
+            print("reached limit of jacobian determinant {self.min_unit} < {self.unit_threshold}")
         return self.min_unit > self.unit_threshold

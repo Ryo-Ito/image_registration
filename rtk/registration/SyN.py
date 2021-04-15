@@ -1,9 +1,9 @@
 import numpy as np
 from joblib import Parallel, delayed
-from registration import Registration
-from rtk.grid import (identity_mapping, jacobian_matrix,
+from .registration import Registration
+from ..grid import (identity_mapping, jacobian_matrix,
                       Deformation, VectorFields)
-from rtk.image import SequentialScalarImages
+from ..image import SequentialScalarImages
 
 
 class SyN(Registration):
@@ -139,8 +139,8 @@ class SyN(Registration):
         for n_iter, resolution, sigma in zip(self.n_iters,
                                              self.resolutions,
                                              self.smoothing_sigmas):
-            print "======================================="
-            print "resolution", resolution
+            print("=======================================")
+            print("resolution", resolution)
             warped_moving = self.moving.apply_transform(forward_warp)
             warped_fixed = self.fixed.apply_transform(backward_warp)
             moving = warped_moving.change_resolution(resolution, sigma)
@@ -161,8 +161,7 @@ class SyN(Registration):
         fixed_images = SequentialScalarImages(fixed, self.n_step + 1)
         moving_images = SequentialScalarImages(moving, self.n_step + 1)
 
-        print "iteration   0, Energy %f" % (
-            self.similarity.cost(fixed.data, moving.data))
+        print(f"iteration   0, Energy {self.similarity.cost(fixed.data, moving.data)}")
 
         for i in xrange(max_iter):
             self.update(fixed_images, moving_images)
@@ -182,17 +181,12 @@ class SyN(Registration):
                     self.deformation.backward_mappings)
 
             max_delta_phi = self.delta_phi * (max_iter - i)
-            print "iteration%4d, Energy %f" % (
-                i + 1,
-                self.similarity.cost(fixed_images[self.n_step_half],
-                                     moving_images[self.n_step_half])
-            )
-            print 14 * ' ', "minimum unit", self.min_unit
-            print 14 * ' ', "delta phi", self.delta_phi
-            print 14 * ' ', "maximum delta phi", max_delta_phi
+            print(f"iteration {i + 1}, Energy {self.similarity.cost(fixed_images[self.n_step_half], moving_images[self.n_step_half])}")
+            print(14 * ' ', "minimum unit", self.min_unit)
+            print(14 * ' ', "delta phi", self.delta_phi)
+            print(14 * ' ', "maximum delta phi", max_delta_phi)
             if max_delta_phi < self.delta_phi_threshold / resolution:
-                print "|L_inf norm of displacement| x iter < %f voxel" % (
-                    self.delta_phi_threshold / resolution)
+                print("|L_inf norm of displacement| x iter < {self.delta_phi_threshold / resolution}")
                 break
 
         forward_mapping = self.zoom_grid(

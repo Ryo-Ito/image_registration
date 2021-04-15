@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.ndimage.interpolation import map_coordinates
 import nibabel as nib
-from utils import identity_mapping
+from .utils import identity_mapping
 
 
 class Deformation(object):
@@ -93,7 +93,7 @@ class Deformation(object):
 
         nib.save(nib.Nifti1Image(displacement, affine), filename)
 
-        print "saved transformation: %s" % filename
+        print(f"saved transformation: {filename}")
 
     def save_as_img(self, filename, interval,
                     limit_axis=True, show_axis=False):

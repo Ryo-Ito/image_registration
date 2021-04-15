@@ -1,8 +1,8 @@
 import numpy as np
 from joblib import Parallel, delayed
-from registration import Registration
-from rtk.grid import Deformation, VectorFields
-from rtk.image import SequentialScalarImages
+from .registration import Registration
+from ..grid import Deformation, VectorFields
+from ..image import SequentialScalarImages
 
 
 class LDDMM(Registration):
@@ -17,7 +17,7 @@ class LDDMM(Registration):
             self.update_sequential(fixed, moving)
 
     def update_sequential(self, fixed, moving):
-        for i in xrange(self.n_step + 1):
+        for i in range(self.n_step + 1):
             j = - i - 1
             momentum = (self.similarity.derivative(fixed[j], moving[i])
                         * self.deformation.backward_dets[j])
@@ -39,7 +39,7 @@ class LDDMM(Registration):
                                     self.vector_fields[i],
                                     self.regularizer,
                                     self.learning_rate)
-                for i in xrange(self.n_step + 1)
+                for i in range(self.n_step + 1)
             )
         )
         self.vector_fields.update()
@@ -59,8 +59,8 @@ class LDDMM(Registration):
         for n_iter, resolution, sigma in zip(self.n_iters,
                                              self.resolutions,
                                              self.smoothing_sigmas):
-            print "======================================="
-            print "resolution", resolution
+            print("=======================================")
+            print("resolution", resolution)
             warped_moving = self.moving.apply_transform(warp)
 
             moving = warped_moving.change_resolution(resolution, sigma)
@@ -78,10 +78,9 @@ class LDDMM(Registration):
         moving_images = SequentialScalarImages(moving, self.n_step + 1)
         fixed_images = SequentialScalarImages(fixed, self.n_step + 1)
 
-        print "iteration   0, Energy %f" % (
-            self.similarity.cost(fixed.data, moving.data))
+        print(f"iteration   0, Energy {self.similarity.cost(fixed.data, moving.data)}")
 
-        for i in xrange(max_iter):
+        for i in range(max_iter):
             self.update(fixed_images, moving_images)
 
             if not self.check_injectivity():
@@ -99,15 +98,12 @@ class LDDMM(Registration):
                     self.deformation.backward_mappings)
 
             max_delta_phi = self.delta_phi * (max_iter - i)
-            print "iteration%4d, Energy %f" % (
-                i + 1,
-                self.similarity.cost(fixed_images[0], moving_images[-1]))
-            print 14 * ' ', "minimum unit", self.min_unit
-            print 14 * ' ', "delta phi", self.delta_phi
-            print 14 * ' ', "maximum delta phi", max_delta_phi
+            print(f"iteration {i + 1}, Energy {self.similarity.cost(fixed_images[0], moving_images[-1])}")
+            print(14 * ' ', "minimum unit", self.min_unit)
+            print(14 * ' ', "delta phi", self.delta_phi)
+            print(14 * ' ', "maximum delta phi", max_delta_phi)
             if max_delta_phi < self.delta_phi_threshold / resolution:
-                print "|L_inf norm of displacement| x iter < %f voxel" % (
-                    self.delta_phi_threshold / resolution)
+                print(f"|L_inf norm of displacement| x iter < {self.delta_phi_threshold / resolution} voxel")
                 break
 
         return self.zoom_grid(self.deformation.forward_mappings[-1],
@@ -119,8 +115,8 @@ class LDDMM(Registration):
         for n_iter, resolution, sigma in zip(self.n_iters,
                                              self.resolutions,
                                              self.smoothing_sigmas):
-            print "======================================="
-            print "resolution", resolution
+            print("=======================================")
+            print("resolution", resolution)
             fixed = self.fixed.change_resolution(resolution, sigma)
             moving = self.moving.change_resolution(resolution, sigma)
             shape = fixed.get_shape()
@@ -139,10 +135,9 @@ class LDDMM(Registration):
         moving_images = SequentialScalarImages(moving, self.n_step)
         fixed_images.apply_transforms(self.deformation.backward_mappings)
         moving_images.apply_transforms(self.deformation.forward_mappings)
-        print "iteration   0, Energy %f" % (
-            self.similarity.cost(fixed_images[0], moving_images[-1]))
+        print(f"iteration   0, Energy {self.similarity.cost(fixed_images[0], moving_images[-1])}")
 
-        for i in xrange(max_iter):
+        for i in range(max_iter):
             self.update(fixed_images, moving_images)
 
             if not self.check_injectivity():
@@ -160,15 +155,12 @@ class LDDMM(Registration):
                     self.deformation.backward_mappings)
 
             max_delta_phi = self.delta_phi * (max_iter - i)
-            print "iteration%4d, Energy %f" % (
-                i + 1,
-                self.similarity.cost(fixed_images[0], moving_images[-1]))
-            print 14 * ' ', "minimum unit", self.min_unit
-            print 14 * ' ', "delta phi", self.delta_phi
-            print 14 * ' ', "maximum delta phi {0}".format(max_delta_phi)
+            print(f"iteration {i + 1}, Energy {self.similarity.cost(fixed_images[0], moving_images[-1])}")
+            print(14 * ' ', "minimum unit", self.min_unit)
+            print(14 * ' ', "delta phi", self.delta_phi)
+            print(14 * ' ', f"maximum delta phi {max_delta_phi}")
             if max_delta_phi < self.delta_phi_threshold / resolution:
-                print "|L_inf norm of displacement| x iter < %f voxel" % (
-                    self.delta_phi_threshold / resolution)
+                print(f"|L_inf norm of displacement| x iter < {self.delta_phi_threshold / resolution} voxel")
                 break
 
         return self.vector_fields.change_resolution(resolution=1. / resolution)

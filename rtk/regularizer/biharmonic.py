@@ -5,7 +5,7 @@ try:
     fftn = functools.partial(fftn, threads=5)
     ifftn = functools.partial(ifftn, threads=5)
 except ImportError:
-    print "no pyfftw package, going to use fft from scipy"
+    print("no pyfftw package, going to use fft from scipy")
     from scipy.fftpack import fftn, ifftn
 from rtk.grid import identity_mapping
 
@@ -34,13 +34,13 @@ class BiharmonicRegularizer(object):
         if (hasattr(self, 'operator')
                 and momentum.shape[1:] == self.operator.shape):
             G = np.zeros(momentum.shape, dtype=np.complex128)
-            for i in xrange(len(momentum)):
+            for i in range(len(momentum)):
                 G[i] = fftn(momentum[i])
 
             F = G * self.operator
 
             vector_field = np.zeros_like(momentum)
-            for i in xrange(len(momentum)):
+            for i in range(len(momentum)):
                 vector_field[i] = np.real(ifftn(F[i]))
 
             return vector_field
@@ -53,4 +53,4 @@ if __name__ == '__main__':
     A[:, 5, 5] = 1.
     r = BiharmonicRegularizer()
     r.set_operator([11, 11])
-    print r(A)
+    print(r(A))

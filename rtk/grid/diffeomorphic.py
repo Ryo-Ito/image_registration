@@ -1,5 +1,5 @@
 import numpy as np
-from utils import identity_mapping, jacobian_matrix, determinant
+from .utils import identity_mapping, jacobian_matrix, determinant
 
 
 class DiffeomorphicDeformation(object):
@@ -41,7 +41,7 @@ class DiffeomorphicDeformation(object):
         forward_jacobian_matrix = jacobian_matrix(self.initial_grid)
         backward_jacobian_matrix = np.copy(forward_jacobian_matrix)
 
-        for i in xrange(self.n_step):
+        for i in range(self.n_step):
             self.forward_mappings[i + 1] = self.euler_integration(
                 self.forward_mappings[i],
                 forward_jacobian_matrix,
