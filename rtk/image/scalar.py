@@ -3,7 +3,7 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import zoom
 from skimage.transform import warp
 import nibabel as nib
-from image import Image
+from .image import Image
 
 
 class ScalarImage(Image):

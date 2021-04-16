@@ -1,4 +1,6 @@
 import nibabel as nib
+import numpy as np
+from ..pv_wrapper import save as savevtk
 
 
 class Image(object):
@@ -16,5 +18,15 @@ class Image(object):
         return self.ndim
 
     def save(self, filename):
-        nib.save(nib.Nifti1Image(self.data, self.affine), filename)
-        print "saved image: %s" % filename
+
+        if '.vtk' in filename:
+            savevtk(self.data, filename)
+
+        elif '.nii.gz' in filename or '.nii' in filename:
+            nib.save(nib.Nifti1Image(np.expand_dims(self.data, axis=0), self.affine), filename)
+
+        else:
+            print('Please input a valid filetype')
+            raise ValueError 
+
+        print(f"saved image: {filename}")

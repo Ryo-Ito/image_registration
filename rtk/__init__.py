@@ -1,11 +1,14 @@
-from imageprocessing import (gradient, uniform_convolve, uniform_filter,
+from .imageprocessing import (gradient, uniform_convolve, uniform_filter,
                              interpolate_mapping, sliding_matmul)
-import grid
-import image
-import registration
-import regularizer
-import similarity
-from utils import load_img, load_warp, transform, show, save
+
+from .grid import *
+from .image import *
+from .registration import *
+from .regularizer import *
+from .similarity import *
+from .vis import plot_slices
+from .pv_wrapper import *
+from .utils import load_img, load_dicom, load_warp, transform, show, save
 __all__ = ["load_img",
            "load_warp",
            "transform",

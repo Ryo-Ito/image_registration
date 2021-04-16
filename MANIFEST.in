@@ -1,0 +1,7 @@
+include rtk/imageprocessing.so
+include rtk/grid/*
+include rtk/image/*
+include rtk/registration/*
+include rtk/regularizer/*
+include rtk/similarity/*
+include docs/build/man/*

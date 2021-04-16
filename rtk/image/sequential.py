@@ -19,7 +19,7 @@ class SequentialScalarImages(object):
 
         self.original = img.data
 
-        self.data = [img.data for _ in xrange(deformation_step + 1)]
+        self.data = [img.data for _ in range(deformation_step + 1)]
 
     def __getitem__(self, index):
         return self.data[index]
