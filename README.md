@@ -7,7 +7,7 @@ To install:
 First, clone the repository:
 
 ```bash
-git clone https://gitlab.com/tdinav-pipeline/registration-tools
+git clone https://github.com/calderds/image_registration
 ```
 
 Now, we need to compile the `imageprocessing.pyx` file for your operating system and rename it so the package can see it. To do so (on a UNIX system), use the following commands.
