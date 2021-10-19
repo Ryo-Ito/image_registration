@@ -78,7 +78,7 @@ def main():
     args = parser.parse_args()
     label1 = ScalarImage(args.labels[0])
     label2 = ScalarImage(args.labels[1])
-    print label_dissimilarity(label1, label2)
+    print(label_dissimilarity(label1, label2))
 
 if __name__ == '__main__':
     main()
